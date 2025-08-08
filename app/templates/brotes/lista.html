@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+
+{% block head %}
+
+<!-- DataTables + Botones -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+
+<style>
+    /* Estilos para el tamaño de los controles */
+    .dataTables_wrapper .dataTables_length select,
+    .dataTables_wrapper .dataTables_filter input {        
+        width: 50px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem; /* Tamaño reducido */
+        border-radius: 25px;
+    }
+
+    /* Controles alineados horizontalmente */
+    .dataTables_wrapper .dataTables_filter {
+        width: 100px !important;
+        float: left !important;
+        text-align: left !important;
+    }
+    .dataTables_wrapper .dataTables_length {        
+        width: 80px !important;
+        float: right !important;
+        text-align: right !important;
+    }
+
+    /* Estilos para botones del paginado */
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.875rem;
+        border-radius: 5px;
+        background-color: #0d6efd;
+        color: white !important;
+        margin: 0 2px;
+        border: none;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #0b5ed7;
+        color: white !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #198754 !important;
+        color: white !important;
+    }
+</style>
+{% endblock %}
+
+{% block title %}Lista de Brotes{% endblock %}
+
+{% block content %}
+<h2>Brotes registrados</h2>
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for('brotes_bp.exportar_excel') }}" class="btn-excel mb-3">
+        Exportar a Excel
+    </a>
+</div>
+<table id="tablaBrotes" class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tipo Evento</th>
+            <th>Institución</th>
+            <th>Municipio</th>
+            <th>Lugar</th>
+            <th>Fecha registro</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for brote in brotes %}
+        <tr>
+            <td>{{ brote.idbrote }}</td>
+            <td>{{ brote.tipoevento }}</td>
+            <td>{{ brote.institucion }}</td>
+            <td>{{ brote.municipio }}</td>
+            <td>{{ brote.lugar }}</td>
+            <td>{{ brote.created_at.strftime('%d-%m-%Y') if brote.created_at else '' }}</td>
+            <td>
+                <div class="btn-group">
+                    {% if current_user.is_authenticated and current_user.rol in ['super_administrador',
+                    'jefe_departamento'] %}
+                    <a href="{{ url_for('brotes_bp.editar_brote', idbrote=brote.idbrote) }}"
+                        class="btn btn-sm btn-outline-dark" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    {% endif %}
+
+                    <!-- PENDIENTE REALIZAR LOGICA -->
+                    <a href="/edit_brote/{{ brote.idbrote }}" class="btn btn-sm btn-outline-dark"
+                        onclick="return confirm('¿Eliminar este usuario y sus documentos?')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery + DataTables -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+<!-- Extensiones para exportar -->
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<!-- <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<!-- Idioma español -->
+<script src="https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-MX.json"></script>
+
+<script>
+    $(document).ready(function () {
+        $('#tablaBrotes').DataTable({
+            dom: '<"row mb-3"<"col-sm-1"l><"col-sm-7"><"col-sm-4"f>>t<"row mt-3"<"col-sm-6"i><"col-sm-6"p>>',
+            pagingType: 'full_numbers',
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-MX.json',
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                paginate: {
+                    first: "Primero",
+                    last: "Último",
+                    next: "Siguiente",
+                    previous: "Anterior"
+                }
+            },
+            pageLength: 10,
+            order: [[0, 'asc']]
+        });
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% block title %}Estadísticas de Brotes{% endblock %}
+
+{% block content %}
+<h2>Estadísticas de Brotes</h2>
+
+<form method="GET" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label for="institucion" class="form-label">Filtrar por Institución</label>
+        <select name="institucion" id="institucion" class="form-select" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for inst in instituciones %}
+            <option value="{{ inst.institucion }}" {% if inst.institucion==institucion %}selected{% endif %}>{{
+                inst.institucion }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+<div class="row">
+    <div class="col-md-6">
+        <canvas id="graficoTipos"></canvas>
+    </div>
+    <div class="col-md-6">
+        <canvas id="graficoMeses"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const datosTipos = {{ datos.tipos | tojson }};
+    const datosMes = {{ datos.por_mes | tojson }};
+
+    const ctx1 = document.getElementById('graficoTipos').getContext('2d');
+    new Chart(ctx1, {
+        type: 'pie',
+        data: {
+            labels: datosTipos.map(d => d.tipoevento),
+            datasets: [{
+                data: datosTipos.map(d => d.total),
+                borderWidth: 1
+            }]
+        }
+    });
+
+    const ctx2 = document.getElementById('graficoMeses').getContext('2d');
+    new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: datosMes.map(d => d.mes),
+            datasets: [{
+                label: 'Brotes por Mes',
+                data: datosMes.map(d => d.total),
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        }
+    });
+</script>
+{% endblock %}

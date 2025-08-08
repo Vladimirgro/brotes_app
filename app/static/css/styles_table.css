@@ -1,0 +1,150 @@
+.form-container {
+    max-width: 1100px;
+    margin: auto;
+    background-color: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ccc;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    background-color: #34436d;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 15px;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 10px;
+    border: 1px solid #333;
+    font-size: 0.95rem;
+}
+
+input[type="date"] {
+    font-family: inherit;
+}
+
+/* Tabla responsive */
+.table-container {
+    overflow-x: auto;
+    margin-top: 1rem;
+    border-radius: 10px;
+}
+
+/* Tabla de documentos */
+table#tablaDocumentos {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+#tablaDocumentos th {
+    background-color: #34436d;
+    color: white;
+    text-align: left;
+    padding: 0.5rem;
+}
+
+#tablaDocumentos td {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    background-color: #fff;
+}
+
+#tablaDocumentos tr:nth-child(even) td {
+    background-color: #f2f2f2;
+}
+
+/* Botones dentro de la tabla */
+#tablaDocumentos .btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+
+/* Modal - estilos consistentes */
+.modal-header {
+    background-color: #34436d;
+    color: white;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.modal-content {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #ccc;
+}
+
+.modal-title {
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.modal-body label {
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+    display: block;
+}
+
+.modal-body select,
+.modal-body input {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 10px;
+    border: 1px solid #333;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+}
+
+.modal-footer .btn {
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+#agregarDoc.btn-primary {
+    background-color: #34436d;
+    border-color: #34436d;
+}
+
+#agregarDoc.btn-primary:hover {
+    background-color: #2b3657;
+    border-color: #2b3657;
+}

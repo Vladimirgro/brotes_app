@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+{% block title %}Usuarios registrados{% endblock %}
+
+{% block content %}
+<h2>Usuarios del sistema</h2>
+
+<table id="tablaUsuarios" class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Activo</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for usuario in usuarios %}
+        <tr>
+            <td>{{ usuario.id }}</td>
+            <td>{{ usuario.nombre }}</td>
+            <td>{{ usuario.email }}</td>
+            <td>{{ usuario.rol.replace('_', ' ').title() }}</td>
+            <td>{{ 'Sí' if usuario.activo else 'No' }}</td>
+            <td>{{ usuario.created_at.strftime('%d-%m-%Y') if usuario.created_at else '' }}</td>
+            <td>
+                <a href="{{ url_for('auth_bp.editar_usuario', id_usuario=usuario.id) }}"
+                    class="btn btn-sm btn-primary">Editar</a>
+
+                {% if usuario.activo %}
+                <form action="{{ url_for('auth_bp.cambiar_estado_usuario', id_usuario=usuario.id, estado=0) }}"
+                    method="POST" style="display:inline-block;">
+                    <button class="btn btn-sm btn-danger"
+                        onclick="return confirm('¿Desactivar usuario?')">Desactivar</button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('auth_bp.cambiar_estado_usuario', id_usuario=usuario.id, estado=1) }}"
+                    method="POST" style="display:inline-block;">
+                    <button class="btn btn-sm btn-success"
+                        onclick="return confirm('¿Activar usuario?')">Activar</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#tablaUsuarios').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-MX.json'
+            },
+            pageLength: 10
+        });
+    });
+</script>
+{% endblock %}

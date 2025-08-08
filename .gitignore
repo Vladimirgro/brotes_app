@@ -1,0 +1,52 @@
+# -------------------------
+# Python cache
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# -------------------------
+# Entorno virtual
+# -------------------------
+venv/
+env/
+
+# -------------------------
+# Configuración y secretos
+# -------------------------
+.env
+config.py   # si contiene credenciales
+instance/
+
+# -------------------------
+# Logs y archivos temporales
+# -------------------------
+logs/
+*.log
+
+# -------------------------
+# Archivos de base de datos
+# -------------------------
+*.sqlite3
+*.db
+*.sql
+*.bak
+
+# -------------------------
+# Archivos de modelado MySQL Workbench
+# -------------------------
+*.mwb
+
+# -------------------------
+# Archivos del sistema
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Compilaciones y distribución
+# -------------------------
+*.egg-info/
+dist/
+build/

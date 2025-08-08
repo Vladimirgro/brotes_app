@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block title %}Editar Usuario{% endblock %}
+
+{% block content %}
+<h2>Editar usuario</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label>Nombre</label>
+        <input type="text" name="nombre" value="{{ usuario.nombre }}" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Correo</label>
+        <input type="email" name="email" value="{{ usuario.email }}" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Rol</label>
+        <select name="rol" class="form-control" required>
+            <option value="">Seleccione un rol</option>
+            <option value="super_administrador" {% if usuario.rol == 'super_administrador' %}selected{% endif %}>Super Administrador</option>
+            <option value="subdirector" {% if usuario.rol == 'subdirector' %}selected{% endif %}>Subdirector</option>
+            <option value="jefe_departamento" {% if usuario.rol == 'jefe_departamento' %}selected{% endif %}>Jefe de Departamento</option>
+            <option value="coordinador_estatal" {% if usuario.rol == 'coordinador_estatal' %}selected{% endif %}>Coordinador Estatal</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+</form>
+{% endblock %}

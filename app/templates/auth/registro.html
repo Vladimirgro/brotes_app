@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block title %}Registrar Usuario{% endblock %}
+
+{% block content %}
+<h2>Registrar nuevo usuario</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label>Nombre completo</label>
+        <input type="text" name="nombre" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Correo electrónico</label>
+        <input type="email" name="email" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Contraseña</label>
+        <input type="password" name="password" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Rol</label>
+        <select name="rol" class="form-control" required>
+            <option value="">Seleccione un rol</option>
+            <option value="super_administrador">Super Administrador</option>
+            <option value="subdirector">Subdirector</option>
+            <option value="jefe_departamento">Jefe de Departamento</option>
+            <option value="coordinador_estatal">Coordinador Estatal</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-success">Registrar usuario</button>
+</form>
+{% endblock %}

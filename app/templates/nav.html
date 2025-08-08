@@ -1,0 +1,77 @@
+<nav class="nav">    
+    <div class="nav-left">
+        <div class="nav-item" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </div>
+        <form action="#" class="search-form">
+            <div class="input-group input-group-navbar">
+                <input type="text" class="form-control" placeholder="Buscar..." aria-label="Buscar">
+                <button class="btn" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="nav-right">
+        <div class="nav-item dropdown">
+            {% if current_user.is_authenticated %}
+            <a href="#" data-bs-toggle="dropdown" class="user-profile" id="userDropdown" aria-label="Account" style="text-decoration: none;">
+                <span class="navbar-text me-3">
+                    {{ current_user.nombre }} ({{ current_user.rol }})
+                </span>
+                <div class="user-avatar">
+                    {{ current_user.nombre[0] }}{{ current_user.nombre.split(' ')[1][0] if current_user.nombre.split(' ')|length > 1 else current_user.nombre[1] }}
+                </div>
+            </a>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="#" class="dropdown-item" aria-label="Profile">
+                    <i class="fas fa-user"></i>
+                    <span>Perfil</span>
+                </a>
+                <a href="#" class="dropdown-item" aria-label="Settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuración</span>
+                </a>
+                <div class="dropdown-divider"></div>
+                <a href="{{ url_for('auth_bp.logout') }}" class="dropdown-item" aria-label="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Cerrar sesión</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+
+<!-- <nav class="navbar navbar-expand px-4 py-3">
+    <form action="#" class="d-none d-sm-inline-block">
+        <div class="input-group input-group-navbar">
+            
+        </div>
+    </form>
+    <div class="navbar-collapse collapse">
+        <ul class="navbar-nav ms-auto">
+            <li class="nav-item dropdown">
+                <a href="#" data-bs-toggle="dropdown" class="nav-icon pe-md-0" aria-label="Account">
+                    <img src="#" class="avatar img-fluid" alt="usuario">
+                </a>
+                <div class="dropdown-menu dropdown-menu-end rounded-O border-O shadow mt-3">
+                    <a href="#" class="dropdown-item" aria-label="Profile">
+                        <i class="lni lni-user"></i>
+                        <span>Perfil</span>
+                    </a>
+                    <a href="#" class="dropdown-item" aria-label="Settings">
+                        <i class="lni lni-cog"></i>
+                        <span>Configuración</span>
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item" aria-label="Logout">
+                        <i class="lni lni-exit"></i>
+                    </a>
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav> -->

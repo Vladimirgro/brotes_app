@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Crear Superusuario{% endblock %}
+
+{% block content %}
+<h2>Crear Super Administrador</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="nombre">Nombre</label>
+        <input type="text" name="nombre" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label for="email">Correo electrónico</label>
+        <input type="email" name="email" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label for="password">Contraseña</label>
+        <input type="password" name="password" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success">Crear usuario</button>
+</form>
+{% endblock %}
