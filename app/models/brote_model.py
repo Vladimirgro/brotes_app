@@ -105,13 +105,23 @@ class BroteModel:
                         %(observaciones)s, %(pobmascexp)s, %(pobfemexp)s                    
                     )
                 """
-                cursor.execute(sql, {**data, **ids})
+                parametros = {**data, **ids}
+                
+                cursor.execute(sql, parametros)
                 brote_id = cursor.lastrowid  # <<< Aquí obtenemos el ID insertado            
-                conn.commit()
-                logger.info(f"Brote insertado con ID {brote_id}")
-                return brote_id  # <<< Lo retornamos
+                
+                if brote_id:
+                    conn.commit()
+                    logger.info(f"Brote insertado exitosamente con ID {brote_id}")
+                    return brote_id
+                else:
+                    conn.rollback()
+                    logger.error("Error: No se pudo obtener el ID del brote insertado")
+                    raise Exception("Error al insertar brote: No se generó ID")
+                
         except Exception as e:
             conn.rollback()
+            logger.error(f"Error al insertar brote: {str(e)}")
             raise e
         finally:
             conn.close()

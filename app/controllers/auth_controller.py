@@ -2,7 +2,7 @@ from flask import Blueprint, request, redirect, render_template, session, url_fo
 from app.models import user_model
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
-
+from datetime import datetime
 from app.models.user_model import UserModel
 from app.utils.security import encriptar_password
 
@@ -21,13 +21,20 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        remember_me = request.form.get('remember_me', False)
         
         # Buscar usuario por correo
         user = user_model.UserModel.find_by_email(email)                                    
         
         # Validación de usuario y contraseña        
         if user and check_password_hash(user.password_hash, password):
-            login_user(user)
+            login_user(user, remember=remember_me)
+            
+            print(f"Usuario logueado con remember: {remember_me}")  # Debug
+            
+            session['user_role'] = user.rol
+            session['login_time'] = datetime.now().isoformat()
+            
             flash('Inicio de sesión exitoso.', 'login_success')
             next_page = request.args.get('next')
             return redirect(next_page or url_for('brotes_bp.dashboard'))

@@ -28,38 +28,64 @@ document.getElementById('form_update').addEventListener('submit', async function
         formData.append(`existentes[${index}][fecha]`, fecha);
     });
 
-    // **Capturar documentos nuevos desde documentosAdjuntos**
-    documentosAdjuntos.forEach((doc, index) => {
-        const validTypes = [
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel.sheet.macroEnabled.12',
-            'application/vnd.ms-excel.sheet.macroenabled.12'
-        ];
 
-        // Verificar si el documento es existente, si hay archivo y validar el tipo de documento
+    // **Validar y capturar documentos nuevos**
+    const validTypes = [
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel.sheet.macroEnabled.12',
+        'application/vnd.ms-excel.sheet.macroenabled.12'
+    ];
+
+    // **Capturar documentos nuevos desde documentosAdjuntos**
+    // documentosAdjuntos.forEach((doc, index) => {                
+    //     if (doc.archivo && validTypes.includes(doc.archivo.type)) {
+    //         formData.append(`nuevos[${index}][tipo]`, doc.tipo);
+    //         formData.append(`nuevos[${index}][archivo]`, doc.archivo);
+    //         formData.append(`nuevos[${index}][folio]`, doc.folio || '');
+    //         formData.append(`nuevos[${index}][fecha]`, doc.fecha || '');
+    //     } else {
+    //         Swal.fire('Error', 'Solo se permiten archivos de tipo DOC, DOCX, XLSX, XLS, XLSM', 'error');
+    //         return;
+    //     }
+    // });
+
+    // Validar tipos de archivo antes de procesar
+    for (let i = 0; i < documentosAdjuntos.length; i++) {
+        const doc = documentosAdjuntos[i];
+        if (doc.archivo && !validTypes.includes(doc.archivo.type)) {
+            Swal.fire('Error', 'Solo se permiten archivos de tipo DOC, DOCX, XLSX, XLS, XLSM', 'error');
+            return; // Ahora sí sale de la función principal
+        }
+    }
+
+
+    // Capturar documentos nuevos
+    documentosAdjuntos.forEach((doc, index) => {
         if (doc.archivo && validTypes.includes(doc.archivo.type)) {
             formData.append(`nuevos[${index}][tipo]`, doc.tipo);
             formData.append(`nuevos[${index}][archivo]`, doc.archivo);
             formData.append(`nuevos[${index}][folio]`, doc.folio || '');
             formData.append(`nuevos[${index}][fecha]`, doc.fecha || '');
-        } else {
-            Swal.fire('Error', 'Solo se permiten archivos de tipo DOC, DOCX, XLSX, XLS, XLSM', 'error');
-            return;
         }
     });
+
 
 
     confirmarSwal('¿Desea actualizar brote?', async () => {
         try {
             const response = await fetch(`/brotes/actualizar_brote/${form.idbrote.value}`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             const result = await response.json();
+            
             if (!response.ok) throw new Error(result.error || 'Error inesperado');
 
             alertaSwal('Brote actualizado correctamente.', 'success');

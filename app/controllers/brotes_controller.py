@@ -69,20 +69,14 @@ def obtener_datos_brote_y_rel(form):
     if not tipoevento:
         raise ValueError("El campo 'tipoevento' es obligatorio y no puede estar vacío.")
 
+    # Obtener los IDs correspondientes para tipoevento, institucion, municipio, jurisdiccion y diagsospecha
+    idtipoevento = BroteModel.get_catalog_id('tipoeventos', tipoevento, 'idtipoevento')
     
-    try:
-        # Obtener los IDs correspondientes para los catálogos
-        idtipoevento = BroteModel.get_catalog_id('tipoeventos', tipoevento, 'idtipoevento')        
-        idinstitucion = BroteModel.get_catalog_id('instituciones', institucion, 'idinstitucion')    
-        idmunicipio = BroteModel.get_catalog_id('municipios', municipio, 'idmunicipio')
-        idjurisdiccion = BroteModel.get_catalog_id('jurisdicciones', jurisdiccion, 'idjurisdiccion')
-        iddiag = BroteModel.get_catalog_id('diagsospecha', diagsospecha, 'iddiag')
-        
-    except Exception as e:
-        raise ValueError(f"Error al obtener IDs de catálogo: {str(e)}")
-    
-    
-    
+    # Obtener los IDs correspondientes para las otras columnas utilizando la función genérica
+    idinstitucion = BroteModel.get_catalog_id('instituciones', institucion, 'idinstitucion')    
+    idmunicipio = BroteModel.get_catalog_id('municipios', municipio, 'idmunicipio')
+    idjurisdiccion = BroteModel.get_catalog_id('jurisdicciones', jurisdiccion, 'idjurisdiccion')
+    iddiag = BroteModel.get_catalog_id('diagsospecha', diagsospecha, 'iddiag')
         
     # Validar que todos los campos de catálogo sean válidos
     if not all([idtipoevento, idinstitucion, idmunicipio, idjurisdiccion, iddiag]):
@@ -447,7 +441,7 @@ def editar_brote(idbrote):
                              brote=brote, 
                              documentos=documentos, 
                              origen=origen,
-                             state=state)  # Pasar el estado al template
+                             state=state)
 
 
 
@@ -473,7 +467,7 @@ def redirect_to_origin(origen, state=None):
 #Endpoint para ACTUALIZAR datos
 @brotes_bp.route('/actualizar_brote/<int:idbrote>', methods=['POST'])
 @login_required
-@rol_requerido('jefe_departamento', 'coordinador_estatal')
+@rol_requerido('super_administrador','jefe_departamento', 'coordinador_estatal')
 def actualizar_brote(idbrote):
     logger = current_app.logger
     

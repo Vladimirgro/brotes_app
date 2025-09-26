@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import os
+from datetime import timedelta
 
 load_dotenv()
 
@@ -27,4 +28,14 @@ class Config:
         os.makedirs(UPLOAD_FOLDER)
     
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+    
+        
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = False  # True en producción
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    
+    # Flask-Login básico        
+    REMEMBER_COOKIE_DURATION = timedelta(days=1)
+    REMEMBER_COOKIE_SECURE = False  # True en producción
+    REMEMBER_COOKIE_HTTPONLY = True
     

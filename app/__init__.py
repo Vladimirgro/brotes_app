@@ -25,7 +25,9 @@ def create_app():
         from app.models.user_model import UserModel
         return UserModel.obtener_por_id(user_id)
 
-    login_manager.login_view = 'auth_bp.login' 
+    login_manager.login_view = 'auth_bp.login'     
+    login_manager.login_message = 'Por favor, inicia sesión para acceder a esta página.'
+    login_manager.login_message_category = 'info'
     
     # Importar Blueprints
     from app.controllers.main_controller import main_bp

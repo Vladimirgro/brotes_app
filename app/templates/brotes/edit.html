@@ -1,13 +1,7 @@
 {% extends "layout.html" %} {% block title %}Editar Brote{% endblock %} {% block
 content %}
 
-<form
-  class="form-container"
-  id="form_update"
-  method="POST"
-  action="{{ url_for('brotes_bp.actualizar_brote', idbrote=brote.idbrote if brote else 0) }}"
-  enctype="multipart/form-data"
->
+<form class="form-container" id="form_update" method="POST" enctype="multipart/form-data">
   <!-- Campos del brote -->
   <input type="hidden" name="idbrote" value="{{ brote.idbrote }}" />
   <input type="hidden" name="origen" value="{{ origen }}" />

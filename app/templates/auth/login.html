@@ -580,8 +580,10 @@
 
                 <div class="form-options">
                     <label class="remember-me">
-                        <input type="checkbox" name="remember" id="remember">
-                        <span>Recordarme</span>
+                        <input type="checkbox" class="form-check-input" name="remember_me" id="remember_me" value="1">
+                        <label class="form-check-label" for="remember_me">
+                            Recordarme
+                        </label>
                     </label>
                     <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
                 </div>
@@ -821,6 +823,7 @@
 
             window.setLoginSuccess = function(message) {
                 localStorage.setItem('loginSuccess', message);
+            };
     </script>
 </body>
 
