@@ -1,64 +1,263 @@
 {% extends "layout.html" %}
+
 {% block title %}Estadísticas de Brotes{% endblock %}
 
 {% block content %}
-<h2>Estadísticas de Brotes</h2>
+<h2 class="mb-4">Estadísticas de Brotes</h2>
 
 <form method="GET" class="row g-3 mb-4">
     <div class="col-md-4">
         <label for="institucion" class="form-label">Filtrar por Institución</label>
         <select name="institucion" id="institucion" class="form-select" onchange="this.form.submit()">
-            <option value="">Todas</option>
+            <option value="" {% if institucion_seleccionada is none %}selected{% endif %}>Todas</option>
             {% for inst in instituciones %}
-            <option value="{{ inst.institucion }}" {% if inst.institucion==institucion %}selected{% endif %}>{{
-                inst.institucion }}</option>
+            <option value="{{ inst.idinstitucion }}"
+                {% if institucion_seleccionada == inst.idinstitucion %}selected{% endif %}>
+                {{ inst.nombre }}
+            </option>
             {% endfor %}
         </select>
     </div>
 </form>
 
 <div class="row">
-    <div class="col-md-6">
-        <canvas id="graficoTipos"></canvas>
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Distribución por Tipo de Brote</h5>
+                <canvas id="graficoTipos"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="col-md-6">
-        <canvas id="graficoMeses"></canvas>
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Brotes por Mes</h5>
+                <canvas id="graficoMeses"></canvas>
+            </div>
+        </div>
     </div>
 </div>
+
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Resumen de Brotes por Institución y Estatus</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Institución</th>
+                                <th class="text-center">Activos</th>
+                                <th class="text-center">Pendiente Alta</th>
+                                <th class="text-center">Alta</th>
+                                <th class="text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fila in resumen %}
+                            <tr>
+                                <td>{{ fila.institucion }}</td>
+                                <td class="text-center">{{ fila.activos }}</td>
+                                <td class="text-center">{{ fila.pendiente_alta }}</td>
+                                <td class="text-center">{{ fila.alta }}</td>
+                                <td class="fw-bold text-center">{{ fila.total }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No hay datos disponibles</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Resumen de Brotes por Institución y Tipo de Evento</h5>
+
+                {% if resumen_eventos %}
+                <!-- Los datos ya vienen pivotados desde el modelo -->
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped table-hover align-middle" id="tabla_eventos">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Institución</th>
+                                <!-- Obtener todos los tipos de eventos únicos desde los datos pivotados -->
+                                {% set tipos_eventos = [] %}
+                                {% for fila in resumen_eventos %}
+                                    {% for key in fila.keys() %}
+                                        {% if key not in ["idinstitucion", "institucion", "total"] and key not in tipos_eventos %}
+                                            {{ tipos_eventos.append(key) or "" }}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                                
+                                {% for tipo in tipos_eventos|sort %}
+                                <th class="text-center">{{ tipo }}</th>
+                                {% endfor %}
+                                <th class="text-center">Total</th> 
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fila in resumen_eventos %}
+                            <tr>
+                                <td>{{ fila.institucion }}</td>
+                                {% for tipo in tipos_eventos|sort %}
+                                    {% set valor = fila.get(tipo, 0) %}
+                                    <td class="text-center">{{ valor if valor > 0 else '0' }}</td>
+                                {% endfor %}
+                                <td class="text-center"><strong>{{ fila.total }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No hay datos disponibles.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
     const datosTipos = {{ datos.tipos | tojson }};
     const datosMes = {{ datos.por_mes | tojson }};
 
-    const ctx1 = document.getElementById('graficoTipos').getContext('2d');
-    new Chart(ctx1, {
-        type: 'pie',
-        data: {
-            labels: datosTipos.map(d => d.tipoevento),
-            datasets: [{
-                data: datosTipos.map(d => d.total),
-                borderWidth: 1
-            }]
-        }
-    });
+    // Paleta de colores para pie chart
+    const colores = [
+        'rgba(255, 99, 132, 0.6)',
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)',
+        'rgba(255, 159, 64, 0.6)',
+        'rgba(201, 203, 207, 0.6)',
+        'rgba(255, 205, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)'
+    ];
 
-    const ctx2 = document.getElementById('graficoMeses').getContext('2d');
-    new Chart(ctx2, {
-        type: 'bar',
-        data: {
-            labels: datosMes.map(d => d.mes),
-            datasets: [{
-                label: 'Brotes por Mes',
-                data: datosMes.map(d => d.total),
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
+    // Pie chart: tipos
+    if (datosTipos && datosTipos.length > 0) {
+        new Chart(document.getElementById('graficoTipos'), {
+            type: 'pie',
+            data: {
+                labels: datosTipos.map(d => d.tipo),
+                datasets: [{
+                    data: datosTipos.map(d => d.total),
+                    backgroundColor: colores,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    datalabels: {
+                        color: 'black',
+                        font: { 
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        formatter: function(value, context) {
+                            // Calcula el total para obtener porcentaje
+                            const total = context.chart.data.datasets[0].data
+                                .reduce((a, b) => a + b, 0);
+                            const porcentaje = ((value / total) * 100).toFixed(1);
+                            return `${value}\n(${porcentaje}%)`; // número + porcentaje
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels] // activa plugin datalabels
+        });
+    } else {
+        document.getElementById('graficoTipos').innerHTML = '<p class="text-muted text-center">No hay datos para mostrar</p>';
+    }
+
+    // Bar chart: por mes
+    if (datosMes && datosMes.length > 0) {
+        new Chart(document.getElementById('graficoMeses'), {
+            type: 'bar',
+            data: {
+                labels: datosMes.map(d => d.mes),
+                datasets: [{
+                    label: 'Brotes por Mes',
+                    data: datosMes.map(d => d.total),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                layout: {
+                    padding: 10
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: 'black',
+                        font: {                    
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        formatter: function(value) {
+                            return value;   // muestra el número tal cual
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels] // activa el plugin
+        });
+    } else {
+        document.getElementById('graficoMeses').innerHTML = '<p class="text-muted text-center">No hay datos para mostrar</p>';
+    }
+
+    // Agregar funcionalidad de DataTable si está disponible
+    $(document).ready(function() {
+        if ($.fn.DataTable) {
+            $('#tabla_eventos').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                },
+                "pageLength": 10,
+                "responsive": true
+            });
         }
     });
 </script>
+
 {% endblock %}

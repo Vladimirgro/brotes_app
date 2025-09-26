@@ -16,7 +16,7 @@ auth_bp = Blueprint('auth_bp', __name__, url_prefix='/auth')
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('brotes_bp.formulario'))
+        return redirect(url_for('brotes_bp.dashboard'))
     
     if request.method == 'POST':
         email = request.form.get('email')
@@ -30,7 +30,7 @@ def login():
             login_user(user)
             flash('Inicio de sesión exitoso.', 'login_success')
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('brotes_bp.formulario'))
+            return redirect(next_page or url_for('brotes_bp.dashboard'))
         else:
             flash('Correo o contraseña incorrectos.', 'danger')
             return redirect(url_for('auth_bp.login'))

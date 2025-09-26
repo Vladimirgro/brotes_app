@@ -14,12 +14,15 @@ def create_app():
     from config import Config
     app.config.from_object(Config)
 
-
+    # CONFIGURAR LOGGER ANTES DE USARLO
+    configure_logger(app)
+    
     # Inicializa LoginManager
     login_manager.init_app(app)
     
     @login_manager.user_loader
     def load_user(user_id):
+        from app.models.user_model import UserModel
         return UserModel.obtener_por_id(user_id)
 
     login_manager.login_view = 'auth_bp.login' 
@@ -34,31 +37,89 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(brotes_bp, url_prefix='/brotes')
     
-
+    # Log de inicio de aplicación
+    app.logger.info('=== Aplicación Brotes iniciada exitosamente ===')
+    app.logger.info(f'Modo: {app.config.get("ENV", "development")}')
+    app.logger.info(f'Debug mode: {app.debug}')
+    
     return app
 
 def configure_logger(app):
-    # Verificar si la carpeta 'logs' existe, si no, crearla
+    """Configurar logging para la aplicación"""
+    
+    # Crear directorio de logs
     if not os.path.exists('logs'):
-        os.mkdir('logs')
+        os.makedirs('logs')
+        print("Directorio 'logs' creado")
 
-    # Crear un manejador de archivos con rotación
     try:
-        file_handler = RotatingFileHandler('logs/brotes.log', maxBytes=10240, backupCount=5)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s [%(levelname)s] %(message)s [in %(pathname)s:%(lineno)d]'
-        ))
-        file_handler.setLevel(logging.INFO)  # o DEBUG
-
-        # Añadir el manejador al logger de la aplicación
-        app.logger.addHandler(file_handler)
+        # Limpiar handlers existentes para evitar duplicados
+        if app.logger.handlers:
+            app.logger.handlers.clear()
+        
+        # Configurar nivel base del logger
         app.logger.setLevel(logging.INFO)
-        app.logger.info('Aplicación iniciada')
+        
+        # Formatter para logs
+        formatter = logging.Formatter(
+            '[%(asctime)s] %(levelname)s in %(module)s.%(funcName)s():%(lineno)d - %(message)s'
+        )
+        
+        # Handler para archivo principal (INFO y superior)
+        file_handler = RotatingFileHandler(
+            'logs/brotes.log', 
+            maxBytes=10*1024*1024,  # 10MB (no 10KB)
+            backupCount=5,
+            encoding='utf-8'  # Importante para caracteres especiales
+        )
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        
+        # Handler para errores específicos
+        error_handler = RotatingFileHandler(
+            'logs/errors.log',
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=3,
+            encoding='utf-8'
+        )
+        error_handler.setFormatter(formatter)
+        error_handler.setLevel(logging.ERROR)
+        app.logger.addHandler(error_handler)
+        
+        # Handler para consola (solo en desarrollo)
+        if app.debug or app.config.get('ENV') == 'development':
+            console_handler = logging.StreamHandler()
+            console_formatter = logging.Formatter(
+                '%(levelname)s - %(name)s - %(message)s'
+            )
+            console_handler.setFormatter(console_formatter)
+            console_handler.setLevel(logging.INFO)
+            app.logger.addHandler(console_handler)
+            print("Handler de consola agregado (modo desarrollo)")
+        
+        # Configurar logging para SQLAlchemy si está en debug
+        if app.debug:
+            logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+        
+        # Log inicial de configuración
+        app.logger.info('Logger configurado correctamente')
+        print("Logger configurado exitosamente")
 
     except PermissionError as e:
-        # Si ocurre un error de permisos, mostrar el error y proceder
-        app.logger.error(f"Error de permisos al acceder al archivo de log: {e}")
+        error_msg = f"Error de permisos al crear archivo de log: {e}"
+        print(f"ERROR: {error_msg}")
+        # En caso de error de permisos, al menos configurar consola
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        app.logger.addHandler(console_handler)
+        app.logger.error(error_msg)
 
     except Exception as e:
-        # Manejar cualquier otro tipo de error
-        app.logger.error(f"Error al configurar el logger: {e}")
+        error_msg = f"Error al configurar el logger: {e}"
+        print(f"ERROR: {error_msg}")
+        # Handler de emergencia a consola
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.ERROR)
+        app.logger.addHandler(console_handler)
+        app.logger.error(error_msg)

@@ -1,17 +1,19 @@
-from flask import Blueprint, render_template, request, jsonify, send_file
-
+from flask import Blueprint, render_template, request, jsonify, send_file, url_for, flash, redirect, current_app
+from flask_login import current_user
 from app.models import brote_model
 from app.models.brote_model import BroteModel
 import logging
 import io
 from app.forms import BroteForm
 
-logger = logging.getLogger(__name__)
-
-
 import pandas as pd
 from app.middleware.auth_middleware import rol_requerido
 from flask_login import login_required
+
+
+def get_logger():
+    """Helper para obtener el logger de la aplicación actual"""
+    return current_app.logger
 
 
 brotes_bp = Blueprint('brotes_bp', __name__, url_prefix='/brotes')
@@ -67,14 +69,20 @@ def obtener_datos_brote_y_rel(form):
     if not tipoevento:
         raise ValueError("El campo 'tipoevento' es obligatorio y no puede estar vacío.")
 
-    # Obtener los IDs correspondientes para tipoevento, institucion, municipio, jurisdiccion y diagsospecha
-    idtipoevento = BroteModel.get_catalog_id('tipoeventos', tipoevento, 'idtipoevento')
     
-    # Obtener los IDs correspondientes para las otras columnas utilizando la función genérica
-    idinstitucion = BroteModel.get_catalog_id('instituciones', institucion, 'idinstitucion')    
-    idmunicipio = BroteModel.get_catalog_id('municipios', municipio, 'idmunicipio')
-    idjurisdiccion = BroteModel.get_catalog_id('jurisdicciones', jurisdiccion, 'idjurisdiccion')
-    iddiag = BroteModel.get_catalog_id('diagsospecha', diagsospecha, 'iddiag')
+    try:
+        # Obtener los IDs correspondientes para los catálogos
+        idtipoevento = BroteModel.get_catalog_id('tipoeventos', tipoevento, 'idtipoevento')        
+        idinstitucion = BroteModel.get_catalog_id('instituciones', institucion, 'idinstitucion')    
+        idmunicipio = BroteModel.get_catalog_id('municipios', municipio, 'idmunicipio')
+        idjurisdiccion = BroteModel.get_catalog_id('jurisdicciones', jurisdiccion, 'idjurisdiccion')
+        iddiag = BroteModel.get_catalog_id('diagsospecha', diagsospecha, 'iddiag')
+        
+    except Exception as e:
+        raise ValueError(f"Error al obtener IDs de catálogo: {str(e)}")
+    
+    
+    
         
     # Validar que todos los campos de catálogo sean válidos
     if not all([idtipoevento, idinstitucion, idmunicipio, idjurisdiccion, iddiag]):
@@ -129,6 +137,7 @@ def mostrar_formulario_brote():
 @login_required
 @rol_requerido('super_administrador', 'jefe_departamento')
 def registrar_con_documentos():
+    logger = current_app.logger
     form = request.form
 
     try:
@@ -173,10 +182,129 @@ def lista_brotes():
     return render_template('brotes/lista.html', brotes=brotes)
 
 
-#End ponint para exportar datos de la lista de brotes a excel
-@brotes_bp.route('/exportar_excel', methods=['GET'])
-def exportar_excel():
-    brotes = BroteModel.obtener_brotes_completos()
+
+#End ponint para exportar datos de la lista de brotes alta pendientes a excel
+@brotes_bp.route('/exportar_excel_lista', methods=['GET'])
+def exportar_excel_lista():
+    logger = current_app.logger
+    try:        
+        brotes = BroteModel.obtener_todos_los_brotes()
+                
+        if not brotes: # Validar que hay datos
+            return jsonify({'error': 'No hay datos para exportar'}), 404
+                
+        df = pd.DataFrame(brotes)                      
+        
+        output = io.BytesIO()
+        
+        # Columnas que requieren formato de fecha
+        date_columns = ['Fecha inicio','Fecha notificación','Fecha Última Caso', 'Fecha Alta', 'Fecha consulta', 'Fecha Notinmed Inicial', 'Fecha Notinmed Final']
+        datetime_columns = []  # Para fechas con hora (agregar cuando sea necesario)
+        
+        # Crear archivo Excel con formato mejorado
+        with pd.ExcelWriter(output, engine='xlsxwriter', engine_kwargs={'options': {'nan_inf_to_errors': True}}) as writer:
+            df.to_excel(writer, sheet_name='Brotes', index=False)
+            
+            # Obtener el workbook y worksheet para aplicar formato
+            workbook = writer.book
+            worksheet = writer.sheets['Brotes']
+            
+            # Definir formatos
+            header_format = workbook.add_format({
+                'bold': True,
+                'text_wrap': True,
+                'valign': 'top',
+                'fg_color': '#D7E4BC',
+                'border': 1
+            })
+            
+            cell_format = workbook.add_format({
+                'text_wrap': True,
+                'valign': 'top',
+                'border': 1
+            })
+            
+            # Formato específico para fechas
+            date_format = workbook.add_format({
+                'text_wrap': True,
+                'valign': 'top',
+                'border': 1,
+                'num_format': 'dd/mm/yyyy'
+            })
+            
+            # Formato para datetime (fecha y hora)
+            datetime_format = workbook.add_format({
+                'text_wrap': True,
+                'valign': 'top',
+                'border': 1,
+                'num_format': 'dd/mm/yyyy hh:mm'
+            })
+            
+            # Aplicar formato a headers
+            for col_num, value in enumerate(df.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+            
+            # Ajustar ancho de columnas
+            for i, col in enumerate(df.columns):
+                # Calcular ancho basado en el contenido
+                max_len = max(
+                    df[col].astype(str).map(len).max(),  # máximo en la columna
+                    len(str(col))  # longitud del header
+                ) + 2
+                worksheet.set_column(i, i, min(max_len, 50))  # máximo 50 caracteres
+            
+            # Aplicar formato a todas las celdas de datos con formato específico para fechas
+            for row in range(1, len(df) + 1):
+                for col in range(len(df.columns)):
+                    col_name = df.columns[col]
+                    cell_value = df.iloc[row-1, col]
+                    
+                    # Determinar el formato según el nombre exacto de la columna
+                    if col_name in date_columns:
+                        # Convertir a fecha si es string
+                        if isinstance(cell_value, str) and cell_value:
+                            try:
+                                cell_value = pd.to_datetime(cell_value).date()
+                            except:
+                                pass
+                        worksheet.write(row, col, cell_value, date_format)
+                    elif col_name in datetime_columns:
+                        # Convertir a datetime si es string
+                        if isinstance(cell_value, str) and cell_value:
+                            try:
+                                cell_value = pd.to_datetime(cell_value)
+                            except:
+                                pass
+                        worksheet.write(row, col, cell_value, datetime_format)
+                    else:
+                        worksheet.write(row, col, cell_value, cell_format)
+        
+        # Preparar para descarga
+        output.seek(0)
+        
+        # Generar nombre de archivo con timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'brotes_completos_{timestamp}.xlsx'
+        
+        return send_file(
+            output, 
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        # Log del error usando el logging configurado        
+        logger.error(f"Error exportando Excel: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor al generar el archivo'}), 500
+
+
+
+
+@brotes_bp.route('/exportar_excel_alta_pendientes', methods=['GET'])
+def exportar_excel_alta_pendientes():
+    brotes = BroteModel.obtener_edo_actual_pendientes()
 
     df = pd.DataFrame(brotes)
     output = io.BytesIO()
@@ -185,20 +313,76 @@ def exportar_excel():
 
     output.seek(0)
     return send_file(output, as_attachment=True,
-                     download_name='brotes_completos.xlsx',
+                     download_name='brotes_pendiente_alta.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     
 
+ 
+@brotes_bp.route('/exportar_excel_activos', methods=['GET'])
+def exportar_excel_activos():
+    brotes = BroteModel.obtener_edo_actual_activos()
+
+    df = pd.DataFrame(brotes)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Brotes', index=False)
+
+    output.seek(0)
+    return send_file(output, as_attachment=True,
+                     download_name='brotes_pendiente_alta.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    
+    
 
 
-#Endpoint para mostrar dashboard con estadisticas
+# Endpoint para mostrar dashboard con estadísticas
 @brotes_bp.route('/dashboard', methods=['GET'])
 @login_required
-def dashboard():
-    institucion = request.args.get('institucion', '')
-    datos = brote_model.BroteModel.obtener_estadisticas(institucion)
-    instituciones = brote_model.BroteModel.obtener_instituciones()
-    return render_template('brotes/dashboard.html', datos=datos, instituciones=instituciones, institucion=institucion)
+def dashboard():    
+    try:
+        # Obtiene parámetro GET
+        institucion_param = request.args.get("institucion")
+
+        # Validación y conversión del parámetro institución
+        institucion = None
+        if institucion_param and institucion_param.strip():
+            if institucion_param.isdigit():
+                institucion = int(institucion_param)
+            else:
+                flash("ID de institución debe ser numérico", "warning")
+        
+        # Obtener todos los datos necesarios para el dashboard
+        instituciones = brote_model.BroteModel.obtener_instituciones()
+        datos = brote_model.BroteModel.obtener_estadisticas(institucion)
+        resumen = brote_model.BroteModel.obtener_resumen_instituciones(institucion)   
+        resumen_eventos = brote_model.BroteModel.obtener_resumen_eventos(institucion)
+        
+        # Validar que la institución seleccionada existe (si se especificó una)
+        if institucion:
+            instituciones_ids = [inst['idinstitucion'] for inst in instituciones]
+            if institucion not in instituciones_ids:
+                flash("La institución seleccionada no existe", "warning")
+                institucion = None
+        
+        return render_template('brotes/dashboard.html', 
+                             datos=datos, 
+                             instituciones=instituciones, 
+                             institucion_seleccionada=institucion,
+                             resumen=resumen,
+                             resumen_eventos=resumen_eventos
+                             )
+    
+    except ValueError as e:
+        # Error de validación de parámetros
+        flash(f"Error en los parámetros: {str(e)}", "error")
+        return redirect(url_for('brotes.dashboard'))
+    
+    # except Exception as e:
+    #     # Error general
+    #     flash("Error al cargar el dashboard. Intente nuevamente.", "error")
+    #     logging.error(f"Error en dashboard: {str(e)}")
+    #     return redirect(url_for('brotes.login'))  # o la ruta principal que tengas
+
 
 
 
@@ -206,15 +390,27 @@ def dashboard():
 @brotes_bp.route('/brotes_pendientes', methods=['GET'])
 @login_required
 def brotes_pendientes():
-    brotes = BroteModel.obtener_edo_actual_pendientes()    
-    return render_template('brotes/reports.html', brotes=brotes)
+    brotes = BroteModel.obtener_edo_actual_pendientes()
+    return render_template(
+        'brotes/reports.html',
+        brotes=brotes,
+        titulo="Brotes pendientes de alta",
+        encabezado="Brotes pendientes de alta",
+        export_url=url_for('brotes_bp.exportar_excel_alta_pendientes')
+    )
 
 
 @brotes_bp.route('/brotes_activos', methods=['GET'])
 @login_required
-def brotes_activos():    
+def brotes_activos():
     brotes = BroteModel.obtener_edo_actual_activos()
-    return render_template('brotes/reports.html', brotes=brotes)
+    return render_template(
+        'brotes/reports.html',
+        brotes=brotes,
+        titulo="Brotes activos",
+        encabezado="Brotes activos",
+        export_url=url_for('brotes_bp.exportar_excel_activos')
+    )
 
 
 
@@ -222,19 +418,68 @@ def brotes_activos():
 #Endpoint para mostrar datos en el formulario y poder ACTUALIZAR
 @brotes_bp.route('/<int:idbrote>/editar', methods=['GET'])
 def editar_brote(idbrote):
-    catalogos = BroteModel.obtener_catalogos()    
-    brote = BroteModel.obtener_brote(idbrote)    
-    documentos = BroteModel.obtener_documentos_por_brote(idbrote)
-    return render_template('brotes/edit.html',  **catalogos, brote=brote, documentos=documentos)
+    logger = current_app.logger
+    # Detectar de dónde viene la solicitud
+    origen = request.args.get('origen', 'lista_brotes')  # Por defecto lista_brotes
+    
+    # Capturar estado de paginación si existe
+    state = request.args.get('state')
+    
+    
+    try:
+        catalogos = BroteModel.obtener_catalogos()    
+        brote = BroteModel.obtener_brote(idbrote)
+        
+        if not brote:
+            flash('El brote especificado no existe', 'error')
+            return redirect_to_origin(origen, state)            
+        
+        documentos = BroteModel.obtener_documentos_por_brote(idbrote)
+    
+    except Exception as e:
+        logger.error(f"Error al cargar brote {idbrote}: {e}", exc_info=True)
+        flash('Error al cargar el brote', 'error')
+        return redirect_to_origin(origen, state)
+    
+    
+    return render_template('brotes/edit.html',  
+                             **catalogos, 
+                             brote=brote, 
+                             documentos=documentos, 
+                             origen=origen,
+                             state=state)  # Pasar el estado al template
 
+
+
+def redirect_to_origin(origen, state=None):
+    """
+    Helper function para redirigir al origen correcto con estado preservado
+    """
+    if origen == 'brotes_pendientes':
+        url = url_for('brotes_bp.brotes_pendientes')
+    elif origen == 'brotes_activos':
+        url = url_for('brotes_bp.brotes_activos')
+    else:
+        url = url_for('brotes_bp.lista_brotes')
+    
+    # Agregar parámetro de estado si existe
+    if state:
+        url += f'?return_state={state}'
+    
+    return redirect(url)
 
 
 
 #Endpoint para ACTUALIZAR datos
 @brotes_bp.route('/actualizar_brote/<int:idbrote>', methods=['POST'])
 @login_required
-@rol_requerido('super_administrador', 'jefe_departamento')
+@rol_requerido('jefe_departamento', 'coordinador_estatal')
 def actualizar_brote(idbrote):
+    logger = current_app.logger
+    
+    origen = request.form.get('origen', 'lista_brotes')  # Obtener origen del form
+    state = request.form.get('state')  # Capturar estado de paginación
+    
     form = request.form
     files = request.files   
         
@@ -248,8 +493,9 @@ def actualizar_brote(idbrote):
         
         BroteModel.actualizar_brote(idbrote, datos_brote, ids_rel)
                 
-        logger.debug(f"Datos del brote a actualizar: {datos_brote}") #PENDIENTE NO GUARDA OBSERVACIONES
-        logger.debug(f"IDs de relaciones: {ids_rel}")
+            # Log del inicio de la operación
+        logger.info(f"Iniciando actualización de brote {idbrote} por usuario {current_user.id if current_user.is_authenticated else 'Anónimo'}")
+        logger.debug(f"Origen: {origen}, State: {state}")
        
         # Documentos existentes
         i = 0
@@ -280,9 +526,69 @@ def actualizar_brote(idbrote):
             BroteModel.guardar_documento(idbrote, archivo, tipo, folio, fecha)            
             j += 1
         
-        #return redirect(url_for('brote_bp.actualizar_brote', idbrote=idbrote))
-        return jsonify({'message': 'Brote y documentos actualizados correctamente'})
+        # Determinar URL de redirección según el origen
+        
+        redirect_url = build_redirect_url(origen, state)
+        origen_texto = get_origen_texto(origen)                     
+        
+        # Respuesta exitosa con URL de redirección
+        return jsonify({
+            'message': 'Brote y documentos actualizados correctamente',
+            'redirect_url': redirect_url,
+            'origen_texto': origen_texto,
+            'success': True
+        })
     
     except Exception as e:
         logger.error(f"Error al actualizar el brote {idbrote} o documentos: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        
+        # En caso de error, también incluir la URL de redirección para volver al formulario
+        if origen == 'brotes_pendientes':
+            form_url = url_for('brotes_bp.editar_brote', idbrote=idbrote, origen='brotes_pendientes')
+        elif origen == 'brotes_activos':
+            form_url = url_for('brotes_bp.editar_brote', idbrote=idbrote, origen='brotes_activos')
+        else:
+            form_url = url_for('brotes_bp.editar_brote', idbrote=idbrote, origen='lista_brotes')
+            
+        return jsonify({
+            'error': str(e),
+            'form_url': form_url,
+            'success': False
+        }), 500
+        
+        
+    
+def build_redirect_url(origen, state):
+    """Construir URL de redirección con estado preservado"""
+    if origen == 'brotes_pendientes':
+        url = url_for('brotes_bp.brotes_pendientes')
+    elif origen == 'brotes_activos':
+        url = url_for('brotes_bp.brotes_activos')
+    else:
+        url = url_for('brotes_bp.lista_brotes')
+    
+    if state:
+        url += f'?return_state={state}'
+    
+    return url
+
+
+def build_edit_url(idbrote, origen, state):
+        """Construir URL de edición con estado preservado"""
+        url = url_for('brotes_bp.editar_brote', idbrote=idbrote)
+        params = [f'origen={origen}']
+        
+        if state:
+            params.append(f'state={state}')
+        
+        return url + '?' + '&'.join(params)
+
+
+def get_origen_texto(origen):
+        """Obtener texto descriptivo del origen"""
+        if origen == 'brotes_pendientes':
+            return 'Brotes Pendientes'
+        elif origen == 'brotes_activos':
+            return 'Brotes Activos'
+        else:
+            return 'Lista de Brotes'

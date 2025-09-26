@@ -4,6 +4,9 @@ import uuid
 import logging
 from werkzeug.utils import secure_filename
 from config import Config
+import pymysql.cursors
+from typing import List, Dict, Optional, Union
+import logging
 
 # Crear logger para este módulo
 logger = logging.getLogger(__name__)           
@@ -49,13 +52,18 @@ class BroteModel:
         if not archivo or not tipo:
             raise ValueError("Archivo o tipo no válidos")
 
+            # DEBUGGING - Agregar esto temporalmente
+        logger.info(f"Validando archivo: {archivo.filename}")
+        logger.info(f"Content-Type: {archivo.content_type}")
+    
         # Validación de extensión
         if not archivo.filename.lower().endswith(('.docx', '.doc', '.xlsx', '.xlsm', '.xls')):
+            logger.error(f"Extensión rechazada: {archivo.filename}")
             raise ValueError("Tipo de archivo no permitido")
 
         # Validación de tamaño (opcional)
-        if archivo.content_length and archivo.content_length > 5 * 1024 * 1024:
-            raise ValueError("Archivo demasiado grande (> 5MB)")
+        if archivo.content_length and archivo.content_length > 10 * 1024 * 1024:
+            raise ValueError("Archivo demasiado grande (> 10MB)")
 
         nombre_original = secure_filename(archivo.filename)   
                     
@@ -230,23 +238,59 @@ class BroteModel:
             conn.close()
             
                         
-    #Obtiene todos los registros para la lista de brotes  -> EDIT.HTML
+    #Obtiene todos los registros para la lista de brotes -> lista.html
     @staticmethod
     def obtener_todos_los_brotes():
         conn = MySQLConnection().connect()
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT b.idbrote, b.lugar, b.created_at,
-                        te.nombre AS tipoevento,
-                        i.nombre AS institucion,
-                        m.nombre AS municipio
-                    FROM brotes b
-                    LEFT JOIN tipoeventos te ON b.idtipoevento = te.idtipoevento
-                    LEFT JOIN instituciones i ON b.idinstitucion = i.idinstitucion
-                    LEFT JOIN municipios m ON b.idmunicipio = m.idmunicipio
-                    ORDER BY b.created_at
-                """)
+                                SELECT 
+                                    b.idbrote,                                        
+                                    t.nombre AS "Tipo evento",
+                                    b.lugar AS Lugar,
+                                    i.nombre AS Institución,
+                                    b.unidadnotif AS "Unidad notificante",    
+                                    b.domicilio AS "Domicilio",
+                                    b.localidad AS Localidad,
+                                    m.nombre AS Municipio,
+                                    j.nombre AS "Jurisdicción",
+                                    b.fechnotifica AS "Fecha notificación",
+                                    d.nombre AS "Diagnóstico Sospecha",
+                                    b.fechinicio AS "Fecha inicio",    
+                                    b.casosprob AS "Casos probables",
+                                    b.casosconf AS "Casos confirmados",
+                                    b.defunciones AS Defunciones,
+                                    b.fechultimocaso AS "Fecha Última Caso",
+                                    b.resultado AS Resultado,
+                                    b.fechalta AS "Fecha Alta",
+                                    b.fecha_consulta AS "Fecha consulta",    
+                                    b.observaciones AS Observaciones,
+                                    b.pobfemexp AS "Poblacion Expuesta Fem",
+                                    b.pobmascexp AS "Poblacion Expuesta Masc",
+                                    (b.pobfemexp + b.pobmascexp) AS "Población expuesta",                                        
+                                    doc_inicial.folionotinmed AS "Folio Notinmed Inicial",
+                                    doc_inicial.fechnotinmed AS "Fecha Notinmed Inicial",                                    
+                                    doc_final.folionotinmed AS "Folio Notinmed Final",
+                                    doc_final.fechnotinmed AS "Fecha Notinmed Final",                                              
+                                    CASE
+                                        WHEN b.fechalta IS NOT NULL THEN 'Alta'
+                                        WHEN b.fechalta IS NULL AND DATEDIFF(CURDATE(), DATE_ADD(b.fechultimocaso, INTERVAL d.periodo_incubacion DAY)) > 0 THEN 'Pendiente Alta'
+                                        ELSE 'Activo'
+                                    END AS Estatus    
+                                FROM brotes b
+                                    INNER JOIN tipoeventos t ON b.idtipoevento = t.idtipoevento
+                                    INNER JOIN instituciones i ON b.idinstitucion = i.idinstitucion
+                                    INNER JOIN municipios m ON b.idmunicipio = m.idmunicipio
+                                    INNER JOIN diagsospecha d ON b.iddiag = d.iddiag
+                                    INNER JOIN jurisdicciones j ON b.idjurisdiccion = j.idjurisdiccion                                    
+                                    LEFT JOIN documentos doc_inicial ON b.idbrote = doc_inicial.brote_id 
+                                        AND doc_inicial.tipo_notificacion = 'INICIAL'                                    
+                                    LEFT JOIN documentos doc_final ON b.idbrote = doc_final.brote_id 
+                                        AND doc_final.tipo_notificacion = 'FINAL'
+                                ORDER BY     
+                                    b.idbrote ASC; 
+                            """)
                 return cursor.fetchall()
         finally:
             conn.close()            
@@ -283,58 +327,290 @@ class BroteModel:
             
 
             
-    #Funcion para estadisiticas del DASHBOARD
+    #Funcion para estadisiticas del DASHBOARD    
     @staticmethod
-    def obtener_estadisticas(institucion=''):
+    def obtener_estadisticas(institucion: Optional[Union[str, int]] = None) -> Dict[str, List[Dict]]:
+        """
+        Obtiene estadísticas de brotes por tipo de evento y por mes.
+        
+        Args:
+            institucion (Optional[Union[str, int]]): ID de la institución para filtrar. 
+                                                   Si es None, obtiene datos de todas las instituciones.
+        
+        Returns:
+            Dict[str, List[Dict]]: Diccionario con claves 'tipos' y 'por_mes', 
+                                 cada una conteniendo lista de diccionarios con los resultados.
+        
+        Raises:
+            ValueError: Si el ID de institución no es válido.
+            pymysql.Error: Si hay error en la consulta a la base de datos.
+        """
+        # Validación de parámetros
+        if institucion is not None and not str(institucion).strip():
+            institucion = None
+        elif institucion is not None and not str(institucion).isdigit():
+            raise ValueError("ID de institución debe ser numérico")
+        
         conn = MySQLConnection().connect()
         try:
-            with conn.cursor() as cursor:
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
                 filtros = []
                 valores = []
 
                 if institucion:
-                    filtros.append("institucion = %s")
-                    valores.append(institucion)
+                    filtros.append("brotes.idinstitucion = %s")                    
+                    valores.append(int(institucion))                     
 
                 where_clause = "WHERE " + " AND ".join(filtros) if filtros else ""
 
-                cursor.execute(f"""
-                    SELECT tipoevento, COUNT(*) as total
-                    FROM brotes
+                # Consulta para tipos de eventos
+                query_tipos = f"""
+                    SELECT 
+                        tipo_eventos.nombre AS tipo, 
+                        COUNT(*) AS total
+                    FROM tipoeventos tipo_eventos
+                    INNER JOIN brotes ON tipo_eventos.idtipoevento = brotes.idtipoevento
                     {where_clause}
-                    GROUP BY tipoevento
-                """, valores)
+                    GROUP BY tipo_eventos.nombre
+                    ORDER BY total DESC
+                """
+                
+                cursor.execute(query_tipos, valores)
                 tipos = cursor.fetchall()
 
-                cursor.execute(f"""
-                    SELECT DATE_FORMAT(fechinicio, '%%Y-%%m') as mes, COUNT(*) as total
+                # Consulta para datos por mes
+                query_por_mes = f"""
+                    SELECT 
+                        DATE_FORMAT(brotes.fechnotifica, '%%Y-%%m') AS mes, 
+                        COUNT(*) AS total
                     FROM brotes
                     {where_clause}
                     GROUP BY mes
                     ORDER BY mes
-                """, valores)
+                """
+                
+                cursor.execute(query_por_mes, valores)
                 por_mes = cursor.fetchall()
-
+                
                 return {
                     'tipos': tipos,
                     'por_mes': por_mes
                 }
+                
+        except pymysql.Error as e:
+            logging.error(f"Error al obtener estadísticas: {e}")
+            raise
+        except Exception as e:
+            logging.error(f"Error inesperado en obtener_estadisticas: {e}")
+            raise
         finally:
             conn.close()
             
 
     #obtener instituciones para filtro de DASHBOARD
-    @staticmethod
-    def obtener_instituciones():
+    def obtener_instituciones() -> List[Dict[str, Union[int, str]]]:
+        """
+        Obtiene la lista de todas las instituciones disponibles.
+        
+        Returns:
+            List[Dict[str, Union[int, str]]]: Lista de diccionarios con idinstitucion y nombre.
+        
+        Raises:
+            pymysql.Error: Si hay error en la consulta a la base de datos.
+        """
         conn = MySQLConnection().connect()
         try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT DISTINCT institucion FROM brotes ORDER BY institucion")
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                cursor.execute("""
+                    SELECT 
+                        idinstitucion, 
+                        nombre
+                    FROM instituciones
+                    WHERE nombre IS NOT NULL AND nombre != ''
+                    ORDER BY nombre ASC
+                """)
                 return cursor.fetchall()
+                
+        except pymysql.Error as e:
+            logging.error(f"Error al obtener instituciones: {e}")
+            raise
+        except Exception as e:
+            logging.error(f"Error inesperado en obtener_instituciones: {e}")
+            raise
         finally:
             conn.close()
-            
-            
+
+    
+    @staticmethod
+    def obtener_resumen_instituciones(institucion: Optional[Union[str, int]] = None) -> List[Dict]:
+        """
+        Obtiene resumen de brotes por institución, clasificados por estado (alta, pendiente_alta, activos).
+        
+        Args:
+            institucion (Optional[Union[str, int]]): ID de institución específica para filtrar.
+                                                   Si es None, obtiene datos de todas las instituciones.
+        
+        Returns:
+            List[Dict]: Lista de diccionarios con estadísticas por institución.
+                       Cada diccionario contiene: idinstitucion, institucion, alta, pendiente_alta, activos, total.
+        
+        Raises:
+            ValueError: Si el ID de institución no es válido.
+            pymysql.Error: Si hay error en la consulta a la base de datos.
+        """
+        # Validación de parámetros
+        if institucion is not None and not str(institucion).strip():
+            institucion = None
+        elif institucion is not None and not str(institucion).isdigit():
+            raise ValueError("ID de institución debe ser numérico")
+        
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                filtros = []
+                valores = []
+
+                if institucion:
+                    filtros.append("brotes.idinstitucion = %s")
+                    valores.append(int(institucion))
+
+                where_clause = "WHERE " + " AND ".join(filtros) if filtros else ""
+
+                query = f"""
+                    SELECT
+                        instituciones.idinstitucion,
+                        instituciones.nombre AS institucion,
+                        SUM(CASE WHEN brotes.fechalta IS NOT NULL THEN 1 ELSE 0 END) AS alta,
+                        SUM(
+                            CASE
+                                WHEN brotes.fechalta IS NULL
+                                     AND DATEDIFF(CURDATE(), DATE_ADD(brotes.fechultimocaso, INTERVAL diagnosticos.periodo_incubacion DAY)) > 0
+                                THEN 1 ELSE 0
+                            END
+                        ) AS pendiente_alta,
+                        SUM(
+                            CASE
+                                WHEN brotes.fechalta IS NULL
+                                     AND NOT (DATEDIFF(CURDATE(), DATE_ADD(brotes.fechultimocaso, INTERVAL diagnosticos.periodo_incubacion DAY)) > 0)
+                                THEN 1 ELSE 0
+                            END
+                        ) AS activos,
+                        COUNT(*) AS total
+                    FROM brotes
+                    INNER JOIN diagsospecha diagnosticos ON brotes.iddiag = diagnosticos.iddiag
+                    INNER JOIN instituciones ON brotes.idinstitucion = instituciones.idinstitucion
+                    {where_clause}
+                    GROUP BY instituciones.idinstitucion, instituciones.nombre
+                    ORDER BY instituciones.nombre ASC
+                """
+
+                cursor.execute(query, valores)
+                return cursor.fetchall()
+                
+        except pymysql.Error as e:
+            logging.error(f"Error al obtener resumen de instituciones: {e}")
+            raise
+        except Exception as e:
+            logging.error(f"Error inesperado en obtener_resumen_instituciones: {e}")
+            raise
+        finally:
+            conn.close()
+
+
+    #Obtener estadisticas por tipo de evento
+    @staticmethod
+    def obtener_resumen_eventos(institucion: Optional[Union[str, int]] = None) -> List[Dict]:
+        """
+        Obtiene resumen de eventos por institución y tipo de evento.
+        Devuelve resultados pivotados listos para mostrar en tabla.
+        
+        Args:
+            institucion (Optional[Union[str, int]]): ID de institución específica para filtrar.
+                                                   Si es None, obtiene datos de todas las instituciones.
+        
+        Returns:
+            List[Dict]: Lista con registros pivotados por institución.
+                       Cada diccionario contiene: idinstitucion, institucion, [tipos_evento], total.
+        
+        Raises:
+            ValueError: Si el ID de institución no es válido.
+            pymysql.Error: Si hay error en la consulta a la base de datos.
+        """
+        # Validación de parámetros
+        if institucion is not None and not str(institucion).strip():
+            institucion = None
+        elif institucion is not None and not str(institucion).isdigit():
+            raise ValueError("ID de institución debe ser numérico")
+        
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                filtros = []
+                valores = []
+
+                if institucion:
+                    filtros.append("instituciones.idinstitucion = %s")
+                    valores.append(int(institucion))
+
+                where_clause = "WHERE " + " AND ".join(filtros) if filtros else ""
+
+                query = f"""
+                    SELECT 
+                        instituciones.idinstitucion,
+                        instituciones.nombre AS institucion,
+                        tipo_eventos.nombre AS tipo_evento,
+                        COUNT(*) AS total
+                    FROM brotes
+                    INNER JOIN instituciones ON brotes.idinstitucion = instituciones.idinstitucion
+                    INNER JOIN tipoeventos tipo_eventos ON brotes.idtipoevento = tipo_eventos.idtipoevento
+                    {where_clause}
+                    GROUP BY instituciones.idinstitucion, instituciones.nombre, tipo_eventos.nombre
+                    ORDER BY instituciones.nombre ASC, tipo_eventos.nombre ASC
+                """
+
+                cursor.execute(query, valores)
+                resultados = cursor.fetchall()
+                
+                # 🔹 TU CÓDIGO IMPLEMENTADO AQUÍ 🔹
+                # Pivotar resultados → 1 fila por institución y columnas por tipo_evento
+                instituciones_pivot = {}
+                for row in resultados:
+                    inst_id = row["idinstitucion"]
+                    inst_nombre = row["institucion"]
+                    tipo = row["tipo_evento"]
+                    total = row["total"]
+
+                    if inst_id not in instituciones_pivot:
+                        instituciones_pivot[inst_id] = {
+                            "idinstitucion": inst_id,
+                            "institucion": inst_nombre
+                        }
+
+                    instituciones_pivot[inst_id][tipo] = total
+
+                # 🔹 Agregar totales fila por fila
+                for inst_id, datos in instituciones_pivot.items():
+                    datos["total"] = sum(
+                        v for k, v in datos.items() 
+                        if k not in ["idinstitucion", "institucion"]
+                    )
+
+                return list(instituciones_pivot.values())
+                
+        except pymysql.Error as e:
+            logging.error(f"Error al obtener resumen de eventos: {e}")
+            raise
+        except Exception as e:
+            logging.error(f"Error inesperado en obtener_resumen_eventos: {e}")
+            raise
+        finally:
+            conn.close()
+
+
+
+
+
+    
     #Obtener brotes por estado actual
     @staticmethod
     def obtener_edo_actual_pendientes():
@@ -423,7 +699,7 @@ class BroteModel:
                                     ON b.iddiag = d.iddiag
                                 WHERE 
                                     b.fechalta IS NULL AND 
-                                    DATEDIFF(CURDATE(), DATE_ADD(b.fechultimocaso, INTERVAL d.periodo_incubacion DAY)) < 0
+                                    DATEDIFF(CURDATE(), DATE_ADD(b.fechultimocaso, INTERVAL d.periodo_incubacion DAY)) <= 0
                                 order by b.idbrote                               
                                """)
                 return cursor.fetchall()

@@ -401,6 +401,16 @@
 
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
+                    {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol
+                    == 'coordinador_estatal' or current_user.rol == 'super_administrador') %}
+                    <a href="{{ url_for('brotes_bp.dashboard') }}" class="sidebar-link" aria-label="dashboard">
+                        <i class="lni lni-layout-9"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    {% endif %}
+                </li>
+
+                <li class="sidebar-item">
                     <a href="#" class="sidebar-link has-dropdown collapsed" data-bs-toggle="collapse"
                         data-bs-target="#register" aria-expanded="false" aria-controls="register"
                         aria-label="Registro de brotes">
@@ -409,28 +419,15 @@
                     </a>
                     <ul id="register" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">
                         {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or
-                        current_user.rol == 'super_administrador') %}
+                        current_user.rol == 'coordinador_estatal'  or current_user.rol == 'super_administrador') %}
                         <li class="sidebar-item">
                             <a href="{{ url_for('brotes_bp.formulario') }}" class="sidebar-link">Registrar</a>
                         </li>
                         <li class="sidebar-item">
-                            <a href="{{ url_for('brotes_bp.lista_brotes') }}" class="sidebar-link">Listado</a>
+                            <a href="{{ url_for('brotes_bp.lista_brotes') }}" class="sidebar-link">Listado nominal</a>
                         </li>
-                        {% endif %}
-                    </ul>
-                </li>
-
-                <li class="sidebar-item">
-                    <a href="#" class="sidebar-link collapsed" data-bs-toggle="collapse" data-bs-target="#reportes"
-                        aria-expanded="false" aria-controls="reportes" aria-label="Reportes">
-                        <i class="lni lni-bar-chart-4"></i>
-                        <span>Reportes</span>
-                    </a>
-                    <ul id="reportes" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">
-                        {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or
-                        current_user.rol == 'super_administrador') %}
                         <li class="sidebar-item">
-                            <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" class="sidebar-link">Brotes pendiente de Alta</a>
+                            <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" class="sidebar-link">Brotes pendiente de alta</a>
                         </li>
                         <li class="sidebar-item">
                             <a href="{{ url_for('brotes_bp.brotes_activos') }}" class="sidebar-link">Brotes activos</a>
@@ -440,6 +437,19 @@
                 </li>
 
                 <li class="sidebar-item">
+                    {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or
+                    current_user.rol == 'super_administrador') %}
+                    <a href="#" class="sidebar-link collapsed" data-bs-toggle="collapse" data-bs-target="#reportes"
+                        aria-expanded="false" aria-controls="reportes" aria-label="Reportes">
+                        <i class="lni lni-bar-chart-4"></i>
+                        <span>Reportes</span>
+                    </a>
+                    <ul id="reportes" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">                                                                    
+                    </ul>
+                    {% endif %}
+                </li>
+
+                <!-- <li class="sidebar-item">
                     {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol
                     == 'super_administrador') %}
                     <a href="#" class="sidebar-link" aria-label="Listado de brotes">
@@ -447,14 +457,14 @@
                         <span>Indicadores</span>
                     </a>
                     {% endif %}
-                </li>
+                </li> -->
 
-                <li class="sidebar-item">
+                <!-- <li class="sidebar-item">
                     <a href="#" class="sidebar-link" aria-label="Notificaciones de brotes">
                         <i class="lni lni-bell-1"></i>
                         <span>Notificaciones</span>
                     </a>
-                </li>
+                </li> -->
 
                 {% if current_user.is_authenticated and (current_user.rol == 'super_administrador') %}
                 <li class="sidebar-item">

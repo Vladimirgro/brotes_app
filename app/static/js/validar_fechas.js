@@ -111,11 +111,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (dates.fecha_ultimo_caso && dates.fecha_inicio) {
-      if (dates.fecha_ultimo_caso > dates.fecha_inicio) {
+      if (dates.fecha_ultimo_caso < dates.fecha_inicio) {
         showError(
           inputs.fecha_ultimo_caso,
           "error-message-fecha_ultimo_caso",
-          "La fecha del último caso no puede ser mayor a la de inicio."
+          "La fecha del último caso no puede ser menor a la de inicio."
         );
         isValid = false;
       } else {

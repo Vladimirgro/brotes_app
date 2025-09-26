@@ -9,6 +9,7 @@ function renderTablaDocumentos() {
     const contenedorTabla = document.getElementById('seccionTablaDocumentos');
     const tabla = document.getElementById('tablaDocumentos');
     let tbodyNuevos = document.getElementById('tbodyNuevos');
+    const tbodyExistentes = tabla.querySelector('tbody:first-of-type'); // El primer tbody con documentos existentes
 
     if (!contenedorTabla || !tabla) {
         console.error("No se encontró el contenedor o la tabla de documentos.");
@@ -22,32 +23,50 @@ function renderTablaDocumentos() {
         tabla.appendChild(tbodyNuevos);
     }
 
-    // Si no hay documentos nuevos, ocultamos solo su sección
-    if (documentosAdjuntos.length === 0) {
+    // Verificar si el primer tbody tiene solo la fila de "No hay documentos"
+    const filaNoDocumentos = tbodyExistentes.querySelector('tr td[colspan="5"]');
+    const hayDocumentosExistentes = tbodyExistentes.querySelectorAll('tr[data-tipo="existente"]').length > 0;
+    
+    // Si hay documentos nuevos para agregar
+    if (documentosAdjuntos.length > 0) {
+        // Si existe la fila de "No hay documentos", la eliminamos
+        if (filaNoDocumentos && !hayDocumentosExistentes) {
+            filaNoDocumentos.closest('tr').remove();
+        }
+        
+        // Limpiar y agregar documentos nuevos
         tbodyNuevos.innerHTML = '';
-        return;
+        documentosAdjuntos.forEach((doc, index) => {
+            const fila = document.createElement('tr');
+            fila.dataset.tipo = 'nuevo';
+            fila.innerHTML = `
+                <td>${doc.archivo.name}</td>
+                <td>${doc.tipo}</td>
+                <td><input type="text" class="form-control form-control-sm" value="${doc.folio || ''}"></td>
+                <td><input type="date" class="form-control form-control-sm" value="${doc.fecha || ''}"></td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger btn-eliminar" data-index="${index}" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbodyNuevos.appendChild(fila);
+        });
+    } else {
+        // Si no hay documentos nuevos, limpiar el tbody de nuevos
+        tbodyNuevos.innerHTML = '';
+        
+        // Si tampoco hay documentos existentes, mostrar mensaje de "No hay documentos"
+        if (!hayDocumentosExistentes && !filaNoDocumentos) {
+            tbodyExistentes.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center">
+                        No hay documentos asociados a este brote.
+                    </td>
+                </tr>
+            `;
+        }
     }
-
-    // Limpiar solo el bloque de documentos nuevos
-    tbodyNuevos.innerHTML = '';
-
-    // Agregar filas de nuevos documentos
-    documentosAdjuntos.forEach((doc, index) => {
-        const fila = document.createElement('tr');
-        fila.dataset.tipo = 'nuevo';
-        fila.innerHTML = `
-            <td>${doc.archivo.name}</td>
-            <td>${doc.tipo}</td>
-            <td><input type="text" class="form-control form-control-sm" value="${doc.folio || ''}"></td>
-            <td><input type="date" class="form-control form-control-sm" value="${doc.fecha || ''}"></td>
-            <td>
-                <button type="button" class="btn btn-sm btn-danger" btn-eliminar" data-index="${index} title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-        tbodyNuevos.appendChild(fila);
-    });
 }
 
 

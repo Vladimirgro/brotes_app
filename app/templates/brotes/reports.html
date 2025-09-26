@@ -1,14 +1,9 @@
-{% extends "layout.html" %} {% block head %}
+{% extends "layout.html" %} 
 
+{% block head %}
 <!-- DataTables + Botones -->
-<link
-  rel="stylesheet"
-  href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css"
-/>
-<link
-  rel="stylesheet"
-  href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css"
-/>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css"/>
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css"/>
 
 <style>
   /* Estilos para el tamaño de los controles */
@@ -17,7 +12,6 @@
     width: 50px;
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
-    /* Tamaño reducido */
     border-radius: 25px;
   }
 
@@ -54,15 +48,53 @@
     background-color: #198754 !important;
     color: white !important;
   }
+
+  /* Estilos para el botón de Excel */
+  .btn-excel {
+    background-color: #28a745;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 0.875rem;
+    transition: background-color 0.3s;
+  }
+
+  .btn-excel:hover {
+    background-color: #218838;
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-excel i {
+    margin-right: 0.5rem;
+  }
 </style>
-{% endblock %} {% block title %}Brotes pendientes de alta{% endblock %} {% block
-content %}
-<h2>Brotes pendiente de alta</h2>
+{% endblock %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+
+<!-- Determinar el origen basado en el endpoint específico -->
+{% if request.endpoint == 'brotes_bp.brotes_pendientes' %}
+  {% set page_origin = 'brotes_pendientes' %}
+{% elif request.endpoint == 'brotes_bp.brotes_activos' %}
+  {% set page_origin = 'brotes_activos' %}
+{% else %}
+  {% set page_origin = 'lista_brotes' %}
+{% endif %}
+
+<h2>{{ encabezado }}</h2>
 <div style="margin-bottom: 20px">
-  <a href="{{ url_for('brotes_bp.exportar_excel') }}" class="btn-excel mb-3">
+  <a href="{{ export_url }}" class="btn-excel mb-3">
+    <i class="fas fa-file-excel"></i>
     Exportar a Excel
   </a>
 </div>
+
 <table id="tablaBrotes" class="table table-striped table-bordered">
   <thead>
     <tr>
@@ -82,58 +114,71 @@ content %}
       <td>{{ brote.idbrote }}</td>
       <td>{{ brote.tipo_evento }}</td>
       <td>{{ brote.unidadnotif }}</td>
-      <td>{{ brote.diagnostico }}</td> 
-      <td>{{ brote.fecha_probable_alta.strftime('%Y-%m-%d') if brote.fecha_probable_alta else '' }}</td>
-      <td>{{ brote.dias_expirados if brote.dias_expirados is not none else '-' }}</td>
-      <!-- <td>
-        {% if brote.estado_actual == 'Activo' %} 
-            {{ brote.fecha_probable_alta }}
-            {% elif brote.estado_actual == 'Pendiente Alta' %} 
-            {{ brote.dias_expirados }} 
-        {% endif %}
-      </td> -->
-      
+      <td>{{ brote.diagnostico }}</td>
       <td>
-        {% if brote.estado_actual == 'Activo' %}
-        <span class="badge text-bg-success">Activo</span>
-        {% elif brote.estado_actual == 'Pendiente Alta' %}
-        <span class="badge text-bg-warning">Pendiente alta</span>
+        {% if brote.fecha_probable_alta %}
+          {{ brote.fecha_probable_alta.strftime('%d/%m/%Y') }}
         {% else %}
-        <span class="badge text-bg-secondary">{{ brote.estado_actual }}</span>
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+
+      <td class="text-center">
+        {% if brote.dias_expirados is not none %}
+          {% if brote.dias_expirados > 0 %}
+            <span class="badge bg-danger">{{ brote.dias_expirados }}</span>
+          {% elif brote.dias_expirados == 0 %}
+            <span class="badge bg-warning">{{ brote.dias_expirados }}</span>
+          {% else %}
+            <span class="text-muted">{{ brote.dias_expirados }}</span>
+          {% endif %}
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+
+      <td class="text-center">
+        {% if brote.estado_actual == 'Activo' %}
+          <span class="badge bg-success">Activo</span>
+        {% elif brote.estado_actual == 'Pendiente Alta' %}
+          <span class="badge bg-warning">Pendiente Alta</span>
+        {% elif brote.estado_actual == 'Alta' %}
+          <span class="badge bg-secondary">Alta</span>
+        {% else %}
+          <span class="badge bg-info">{{ brote.estado_actual }}</span>
         {% endif %}
       </td>
       <td>
         <div class="btn-group">
-          {% if current_user.is_authenticated and current_user.rol in
-          ['super_administrador', 'jefe_departamento'] %}
-
-          <a
-            href="{{ url_for('brotes_bp.editar_brote', idbrote=brote.idbrote) }}"
-            class="btn btn-sm btn-outline-dark"
-            title="Editar"
-          >
+          {% if current_user.is_authenticated and current_user.rol in ['super_administrador', 'jefe_departamento'] %}
+          <!-- Botón editar con origen dinámico -->
+          <a href="{{ url_for('brotes_bp.editar_brote', idbrote=brote.idbrote, origen=page_origin) }}"
+            class="btn btn-sm btn-outline-dark" title="Editar">
             <i class="fas fa-edit"></i>
           </a>
 
-          <!-- PENDIENTE REALIZAR LOGICA -->
-          <a
-            href="/edit_brote/{{ brote.idbrote }}"
-            class="btn btn-sm btn-outline-dark"
-            onclick="return confirm('¿Eliminar este usuario y sus documentos?')"
-            title="Eliminar"
-          >
+          <!-- Botón eliminar -->
+          <a href="#" class="btn btn-sm btn-outline-dark" title="Eliminar">
             <i class="fas fa-trash"></i>
           </a>
-
           {% endif %}
         </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="8" class="text-center text-muted py-4">
+        <i class="fas fa-inbox fa-2x mb-2"></i>
+        <p>No hay brotes registrados</p>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-{% endblock %} {% block scripts %}
+{% endblock %}
+
+{% block scripts %}
 <!-- jQuery + DataTables -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -141,14 +186,17 @@ content %}
 
 <!-- Extensiones para exportar -->
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-<!-- <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-<!-- Idioma español -->
-<script src="https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-MX.json"></script>
 
 <script>
   $(document).ready(function () {
+    // Obtener el origen de la página desde la lógica que ya tienes
+    const pageOrigin = '{{ page_origin }}';
+    
+    // Clave única para localStorage según el origen
+    const STORAGE_KEY = `${pageOrigin}_datatable_state`;
+
     $("#tablaBrotes").DataTable({
       dom: '<"row mb-3"<"col-sm-1"l><"col-sm-7"><"col-sm-4"f>>t<"row mt-3"<"col-sm-6"i><"col-sm-6"p>>',
       pagingType: "full_numbers",
@@ -165,8 +213,104 @@ content %}
         },
       },
       pageLength: 10,
-      order: [[0, "asc"]],
+      // order: [[0, "asc"]],
+      // Habilitar preservación de estado
+        stateSave: true,
+        stateDuration: 60 * 60 * 24, // 24 horas
+        stateSaveCallback: function(settings, data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        },
+        stateLoadCallback: function(settings) {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : null;
+        }        
     });
+
+    // Manejar clic en botón editar con preservación de estado
+    $(document).on('click', '.edit-btn-with-state', function(e) {
+        e.preventDefault();
+        
+        const idbrote = $(this).data('idbrote');
+        const origen = $(this).data('origen');
+        
+        // Crear parámetros para preservar el estado
+        const stateParams = {
+            page: table.page.info().page,
+            length: table.page.len(),
+            search: table.search(),
+            order: table.order()
+        };
+        
+        // Codificar el estado
+        const encodedState = btoa(JSON.stringify(stateParams));
+        
+        // Construir URL con estado preservado
+        const editUrl = "{{ url_for('brotes_bp.editar_brote', idbrote=0) }}".replace('0', idbrote) + 
+                       `?origen=${origen}&state=${encodedState}`;
+        
+        // Navegar a edición
+        window.location.href = editUrl;
+    });
+    
+    // Restaurar estado si venimos de una edición
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnState = urlParams.get('return_state');
+    
+    if (returnState) {
+        try {
+            const stateData = JSON.parse(atob(returnState));
+            
+            // Aplicar el estado restaurado
+            if (stateData.page !== undefined) {
+                table.page(stateData.page);
+            }
+            if (stateData.length) {
+                table.page.len(stateData.length);
+            }
+            if (stateData.search) {
+                table.search(stateData.search);
+            }
+            if (stateData.order) {
+                table.order(stateData.order);
+            }
+            
+            // Redibujar la tabla
+            table.draw(false);
+            
+            // Limpiar URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+            
+            console.log(`Estado restaurado para: ${pageOrigin}`);
+            
+        } catch (error) {
+            console.error('Error al restaurar estado:', error);
+        }
+    }
+    
+    // Confirmar eliminación con SweetAlert si está disponible
+    if (typeof Swal !== 'undefined') {
+        $('a[title="Eliminar"]').on('click', function(e) {
+            e.preventDefault();
+            const url = $(this).attr('href');
+            
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: "Esta acción no se puede deshacer",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = url;
+                }
+            });
+        });
+    }
+
   });
 </script>
 
