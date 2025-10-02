@@ -424,7 +424,7 @@
                             <a href="{{ url_for('brotes_bp.formulario') }}" class="sidebar-link">Registrar</a>
                         </li>
                         <li class="sidebar-item">
-                            <a href="{{ url_for('brotes_bp.lista_brotes') }}" class="sidebar-link">Listado nominal</a>
+                            <a href="{{ url_for('brotes_bp.brotes_completos') }}" class="sidebar-link">Listado nominal</a>
                         </li>
                         <li class="sidebar-item">
                             <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" class="sidebar-link">Brotes pendiente de alta</a>
@@ -449,22 +449,6 @@
                     {% endif %}
                 </li>
 
-                <!-- <li class="sidebar-item">
-                    {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol
-                    == 'super_administrador') %}
-                    <a href="#" class="sidebar-link" aria-label="Listado de brotes">
-                        <i class="lni lni-layout-9"></i>
-                        <span>Indicadores</span>
-                    </a>
-                    {% endif %}
-                </li> -->
-
-                <!-- <li class="sidebar-item">
-                    <a href="#" class="sidebar-link" aria-label="Notificaciones de brotes">
-                        <i class="lni lni-bell-1"></i>
-                        <span>Notificaciones</span>
-                    </a>
-                </li> -->
 
                 {% if current_user.is_authenticated and (current_user.rol == 'super_administrador') %}
                 <li class="sidebar-item">
@@ -493,11 +477,14 @@
                     <a href="#" class="sidebar-link collapsed" data-bs-toggle="collapse" data-bs-target="#settings"
                         aria-expanded="false" aria-controls="settings" aria-label="Configuraciones del sistema">
                         <i class="lni lni-gear-1"></i>
-                        <span>Configuración</span>
+                        <span>Diagnósticos</span>
                     </a>
                     <ul id="settings" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">
                         <li class="sidebar-item">
-                            <a href="#" class="sidebar-link">Catálogo diagnósticos</a>
+                            <a href="{{ url_for('brotes_bp.crear_diagnostico') }}" class="sidebar-link">Registrar</a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="{{ url_for('brotes_bp.lista_diagnosticos') }}" class="sidebar-link">lista de diagnósticos</a>
                         </li>
                     </ul>
                 </li>

@@ -95,11 +95,19 @@ body {
     background-color: #34436d;
     color: #FFF;
     border-radius: 20px;
+    width: 100%;    
+}
+
+
+.button_submit {    
+    background-color: #34436d;
+    color: #FFF;
+    border-radius: 20px;
     width: 150px;    
 }
 
 
-.button_add:hover {
+.button_add:hover, .button_submit:hover {
     background-color: #6c757d;
     color: #FFF;    
 }

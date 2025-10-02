@@ -22,16 +22,12 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         remember_me = request.form.get('remember_me', False)
-        
-        # Buscar usuario por correo
+                
         user = user_model.UserModel.find_by_email(email)                                    
-        
-        # Validación de usuario y contraseña        
+                
         if user and check_password_hash(user.password_hash, password):
-            login_user(user, remember=remember_me)
-            
-            print(f"Usuario logueado con remember: {remember_me}")  # Debug
-            
+            login_user(user, remember=remember_me)                       
+                        
             session['user_role'] = user.rol
             session['login_time'] = datetime.now().isoformat()
             

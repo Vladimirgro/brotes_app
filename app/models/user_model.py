@@ -1,6 +1,10 @@
 from app.models.mysql_connection import MySQLConnection, pymysql
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_login import UserMixin
+import logging
+
+# Crear logger para este módulo
+logger = logging.getLogger(__name__)
 
 
 class User(UserMixin):
@@ -34,15 +38,20 @@ class UserModel:
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                                SELECT id, nombre, email, password_hash, rol, activo 
-                                FROM usuarios 
+                                SELECT id, nombre, email, password_hash, rol, activo
+                                FROM usuarios
                                 WHERE email = %s AND activo = 1
-                            """, (email,))                
+                            """, (email,))
                 user_data = cursor.fetchone()
-                # print("Hash leído desde MySQL:", repr(user_data['password_hash']))
-                # print("Tipo de dato:", type(user_data['password_hash']))
                 if user_data:
+                    logger.info(f"Usuario encontrado: {email}")
                     return UserModel.parse_user(user_data)
+                else:
+                    logger.warning(f"Usuario no encontrado o inactivo: {email}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error al buscar usuario por email {email}: {str(e)}", exc_info=True)
+            return None
         finally:
             conn.close()
 
@@ -57,6 +66,11 @@ class UserModel:
                     VALUES (%s, %s, %s, %s, 1)
                 """, (nombre, email, password_hash, rol))
                 conn.commit()
+                logger.info(f"Usuario creado exitosamente: {email} con rol {rol}")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al crear usuario {email}: {str(e)}", exc_info=True)
+            raise e
         finally:
             conn.close()
 
@@ -110,6 +124,15 @@ class UserModel:
                     WHERE id = %s
                 """, (nombre, email, rol, id_usuario))
                 conn.commit()
+
+                if cursor.rowcount > 0:
+                    logger.info(f"Usuario {id_usuario} actualizado: {email} - {rol}")
+                else:
+                    logger.warning(f"Usuario {id_usuario} no encontrado para actualizar")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al actualizar usuario {id_usuario}: {str(e)}", exc_info=True)
+            raise e
         finally:
             conn.close()
 
@@ -122,6 +145,16 @@ class UserModel:
             with conn.cursor() as cursor:
                 cursor.execute("UPDATE usuarios SET activo = %s WHERE id = %s", (nuevo_estado, id_usuario))
                 conn.commit()
+
+                if cursor.rowcount > 0:
+                    estado_texto = "activo" if nuevo_estado == 1 else "inactivo"
+                    logger.info(f"Estado de usuario {id_usuario} cambiado a {estado_texto}")
+                else:
+                    logger.warning(f"Usuario {id_usuario} no encontrado para cambiar estado")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al cambiar estado de usuario {id_usuario}: {str(e)}", exc_info=True)
+            raise e
         finally:
             conn.close()
             

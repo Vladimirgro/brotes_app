@@ -1,0 +1,54 @@
+<div style="display: flex; justify-content: space-between;">   
+    <div>
+        <h3>{{ encabezado }}</h3>
+    </div>
+    <div style="display: flex; align-items: center; gap: 5px; justify-content: center;">
+        <div style="margin-bottom: 10px;">
+            {% if request.endpoint != 'brotes_bp.formulario' %}      
+            <a href="{{ export_url }}" 
+            class="btn btn-sm btn-outline-dark"
+            title="Exportar excel">
+                <i class="fas fa-file-excel"></i>                 
+            </a>
+            {% endif %}        
+        </div>
+        <div style="margin-bottom: 10px; display: flex; justify-content: center; align-items: center;">
+            {% if request.endpoint != 'brotes_bp.formulario' %}      
+            <a href="{{ url_for('brotes_bp.formulario') }}"
+                class="btn btn-sm btn-outline-dark"
+                title="Registrar brote">                
+                <i class="lni lni-pen-to-square"></i>
+            </a>  
+            {% endif %}        
+        </div>
+    
+        <div style="margin-bottom: 10px;">  
+             {% if request.endpoint != 'brotes_bp.brotes_activos' %}      
+            <a href="{{ url_for('brotes_bp.brotes_activos') }}" 
+                class="btn btn-sm btn-outline-dark"
+                title="Brotes activos">           
+                <i class="fas fa-virus"></i>
+            </a> 
+            {% endif %}       
+        </div>
+    
+        <div style="margin-bottom: 10px;">        
+            {% if request.endpoint != 'brotes_bp.brotes_pendientes' %}        
+            <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" 
+                class="btn btn-sm btn-outline-dark"
+                title="Brotes pendientes alta">           
+                <i class="fas fa-hourglass-half"></i>
+            </a>   
+            {% endif %}     
+        </div>    
+        <div style="margin-bottom: 10px;">
+            {% if request.endpoint != 'brotes_bp.brotes_completos' %}        
+            <a href="{{ url_for('brotes_bp.brotes_completos') }}" 
+            class="btn btn-sm btn-outline-dark"
+                title="Listado nominal">    
+                <i class="fas fa-clipboard-list"></i>
+            </a>        
+            {% endif %}
+        </div>    
+    </div>
+</div>

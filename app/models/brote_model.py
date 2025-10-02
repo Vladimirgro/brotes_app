@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from config import Config
 import pymysql.cursors
 from typing import List, Dict, Optional, Union
-import logging
+import shutil
 
 # Crear logger para este módulo
 logger = logging.getLogger(__name__)           
@@ -47,44 +47,96 @@ class BroteModel:
 
     
     #2. Metodo auxiliar para procesar documentos en el controlador
-    @classmethod    
+    @classmethod
     def guardar_documento(cls,brote_id, archivo, tipo, folio=None, fecha=None):
         if not archivo or not tipo:
             raise ValueError("Archivo o tipo no válidos")
 
-            # DEBUGGING - Agregar esto temporalmente
-        logger.info(f"Validando archivo: {archivo.filename}")
-        logger.info(f"Content-Type: {archivo.content_type}")
-    
-        # Validación de extensión
-        if not archivo.filename.lower().endswith(('.docx', '.doc', '.xlsx', '.xlsm', '.xls')):
-            logger.error(f"Extensión rechazada: {archivo.filename}")
-            raise ValueError("Tipo de archivo no permitido")
+        # Validación de brote_id (prevenir path traversal)
+        if not isinstance(brote_id, int) or brote_id <= 0:
+            raise ValueError(f"brote_id inválido: {brote_id}")
+
+        # Validación de extensión usando configuración
+        extension = os.path.splitext(archivo.filename)[1].lower()
+        if extension not in Config.ALLOWED_EXTENSIONS:
+            logger.error(f"Extensión rechazada: {archivo.filename} (extensión: {extension})")
+            extensiones_permitidas = ', '.join(Config.ALLOWED_EXTENSIONS)
+            raise ValueError(f"Tipo de archivo no permitido. Extensiones permitidas: {extensiones_permitidas}")
 
         # Validación de tamaño (opcional)
         if archivo.content_length and archivo.content_length > 10 * 1024 * 1024:
             raise ValueError("Archivo demasiado grande (> 10MB)")
 
-        nombre_original = secure_filename(archivo.filename)   
-                    
-        ruta_absoluta = os.path.join(Config.UPLOAD_FOLDER, f"brote_{brote_id}", nombre_original)
-        ruta_relativa = f"static/uploads/brote_{brote_id}/{nombre_original}"
+        nombre_base = secure_filename(archivo.filename)
 
+        # Validar que secure_filename no devolvió vacío
+        if not nombre_base:
+            raise ValueError("Nombre de archivo inválido después de sanitización")
+
+        # Prevenir duplicados: agregar timestamp si el archivo ya existe
+        nombre_original = nombre_base
+        base_name, extension = os.path.splitext(nombre_base)
+        directorio_brote = os.path.join(Config.UPLOAD_FOLDER, f"brote_{brote_id}")
+        contador = 1
+
+        # Verificar si ya existe archivo con el mismo nombre
+        ruta_temporal = os.path.normpath(os.path.join(directorio_brote, nombre_original))
+        while os.path.exists(ruta_temporal):
+            # Agregar sufijo numérico al nombre
+            nombre_original = f"{base_name}_{contador}{extension}"
+            ruta_temporal = os.path.normpath(os.path.join(directorio_brote, nombre_original))
+            contador += 1
+
+            # Límite de seguridad para evitar loop infinito
+            if contador > 1000:
+                raise ValueError("No se pudo generar nombre único para el archivo")
+
+        if contador > 1:
+            logger.info(f"Archivo duplicado detectado, renombrado a: {nombre_original}")
+
+        # Construir rutas de forma segura y normalizada
+        ruta_absoluta = os.path.normpath(
+            os.path.join(Config.UPLOAD_FOLDER, f"brote_{brote_id}", nombre_original)
+        )
+
+        # Validar que la ruta está dentro del directorio de uploads (prevenir path traversal)
+        upload_folder_abs = os.path.normpath(os.path.abspath(Config.UPLOAD_FOLDER))
+        if not os.path.commonpath([ruta_absoluta, upload_folder_abs]) == upload_folder_abs:
+            raise ValueError("Ruta de archivo inválida (path traversal detectado)")
+
+        # Ruta relativa para BD (siempre con forward slashes)
+        ruta_relativa = os.path.join("static", "uploads", f"brote_{brote_id}", nombre_original).replace('\\', '/')
+
+        # Crear directorio si no existe
         os.makedirs(os.path.dirname(ruta_absoluta), exist_ok=True)
-        archivo.save(ruta_absoluta)        
-        
-        # Ruta relativa para url_for        
-        ruta_relativa = ruta_relativa.replace('\\', '/')        
-        
-        logger.info(f"Archivo guardado en: {ruta_relativa}")
-        # Guardar en base de datos        
-        cls.insertar_documento(brote_id, nombre_original, ruta_relativa, tipo, folio, fecha) 
+
+        # Guardar archivo físico
+        archivo.save(ruta_absoluta)
+
+        logger.info(f"Archivo guardado en: {ruta_absoluta}")
+
+        try:
+            # Guardar en base de datos
+            BroteModel.insertar_documento(brote_id, nombre_original, ruta_relativa, tipo, folio, fecha)
+            logger.info(f"Documento registrado en BD: {nombre_original}")
+
+        except Exception as e:
+            # Si falla BD, eliminar archivo físico para evitar huérfanos
+            logger.error(f"Error al insertar en BD, eliminando archivo físico: {str(e)}")
+            try:
+                if os.path.exists(ruta_absoluta):
+                    os.remove(ruta_absoluta)
+                    logger.info(f"Archivo físico eliminado: {ruta_absoluta}")
+            except Exception as e_file:
+                logger.error(f"No se pudo eliminar archivo huérfano: {str(e_file)}")
+
+            # Re-lanzar excepción original
+            raise e 
         
            
 
 #-----------------1. FUNCIONES CREATE -----------------------------------
-    @staticmethod  
-    #Insertar brotes registro nuevo
+    @staticmethod      
     def insertar_brote(data, ids):
         conn = MySQLConnection().connect()
         try:
@@ -108,7 +160,7 @@ class BroteModel:
                 parametros = {**data, **ids}
                 
                 cursor.execute(sql, parametros)
-                brote_id = cursor.lastrowid  # <<< Aquí obtenemos el ID insertado            
+                brote_id = cursor.lastrowid
                 
                 if brote_id:
                     conn.commit()
@@ -847,5 +899,329 @@ class BroteModel:
         except Exception as e:
             logger.error(f"Error al obtener {id_column} de la tabla {table}: {e}", exc_info=True)
             return None
+        finally:
+            conn.close()
+            
+            
+
+
+#---METODOS PARA ELIMINAR REGISTROS
+    @staticmethod
+    def eliminar_brote(brote_id):
+        """
+        Elimina un brote y todos sus documentos asociados
+        """
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:
+                sql_verficar = "SELECT idbrote FROM brotes WHERE idbrote = %s"
+                cursor.execute(sql_verficar, (brote_id,))
+                brote = cursor.fetchone()
+                
+                if not brote:
+                    raise ValueError(f"No existe el brote con ID {brote_id}")
+                
+                
+                # Eliminar carpeta completa del brote con todos sus archivos
+                carpeta_brote = os.path.join(Config.UPLOAD_FOLDER, f"brote_{brote_id}")
+
+                archivos_eliminados = 0
+                error_archivos = None
+
+                if os.path.exists(carpeta_brote):
+                    try:
+                        # Contar archivos antes de eliminar
+                        archivos_eliminados = len([f for f in os.listdir(carpeta_brote) if os.path.isfile(os.path.join(carpeta_brote, f))])
+
+                        # Eliminar carpeta completa con todos los archivos
+                        shutil.rmtree(carpeta_brote)
+                        logger.info(f"Carpeta eliminada: {carpeta_brote} ({archivos_eliminados} archivos)")
+
+                    except Exception as e:
+                        error_archivos = str(e)
+                        logger.error(f"Error CRÍTICO al eliminar carpeta {carpeta_brote}: {error_archivos}")
+                        # No continuar si falla eliminar archivos
+                        raise Exception(f"No se pudieron eliminar los archivos físicos del brote {brote_id}: {error_archivos}")
+                else:
+                    logger.warning(f"Carpeta no encontrada: {carpeta_brote} - Se procederá a eliminar solo registros de BD")
+
+                # Solo llegar aquí si los archivos se eliminaron exitosamente o no existían
+                # Eliminar registros de documentos de la BD
+                sql_docs = "DELETE FROM documentos WHERE brote_id = %s"
+                cursor.execute(sql_docs, (brote_id,))
+                docs_bd_eliminados = cursor.rowcount
+                
+                sql_brote = "DELETE FROM brotes WHERE idbrote = %s"
+                cursor.execute(sql_brote, (brote_id,))               
+                
+                conn.commit()
+                logger.info(f"Brote {brote_id} eliminado: {docs_bd_eliminados} registros BD, {archivos_eliminados} archivos físicos")
+                return True
+        
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al eliminar el brote {brote_id}: {str(e)}")
+            raise e
+        finally:
+            conn.close()
+        
+        
+        
+ 
+ 
+ 
+ #---METODOS PARA DESCARGAR Y ELIMINAR DOCUMENTOS
+    @staticmethod
+    def obtener_documento_por_id(iddocumento):
+        """Obtiene un documento específico por su ID"""
+        conn = None
+        try:
+            logger.debug(f"Obteniendo documento {iddocumento} de BD")
+            conn = MySQLConnection().connect()
+
+            if not conn:
+                logger.error("No se pudo establecer conexión a la BD")
+                return None
+
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT iddocumento, brote_id, nombre_archivo, path,
+                        tipo_notificacion, folionotinmed, fechnotinmed,
+                        fechacarga, fechmodificacion
+                    FROM documentos
+                    WHERE iddocumento = %s
+                """, (iddocumento,))
+
+                resultado = cursor.fetchone()
+
+                if not resultado:
+                    logger.warning(f"Documento {iddocumento} no encontrado en la BD")
+                    return None
+
+                # Ya es un diccionario, retornarlo directamente o normalizarlo
+                documento = {
+                    'iddocumento': resultado['iddocumento'],
+                    'brote_id': resultado['brote_id'],
+                    'nombre_archivo': resultado['nombre_archivo'],
+                    'path': resultado['path'],
+                    'tipo_notificacion': resultado['tipo_notificacion'],
+                    'folionotinmed': resultado['folionotinmed'],
+                    'fechnotinmed': resultado['fechnotinmed'],
+                    'fechacarga': resultado['fechacarga'],
+                    'fechmodificacion': resultado['fechmodificacion']
+                }                
+                return documento
+                
+        except Exception as e:
+            logger.error(f"Error al obtener documento {iddocumento}: {str(e)}", exc_info=True)
+            return None
+            
+        finally:
+            if conn:
+                conn.close()
+                
+
+
+    @staticmethod
+    def eliminar_documento(iddocumento):
+        """Elimina un documento de la BD y el archivo físico"""
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:                
+                cursor.execute("""
+                    SELECT path, nombre_archivo 
+                    FROM documentos 
+                    WHERE iddocumento = %s
+                """, (iddocumento,))
+                
+                documento = cursor.fetchone()
+                
+                if not documento:
+                    raise ValueError(f"No existe el documento con ID {iddocumento}")
+                
+                ruta_archivo = documento['path']
+                nombre_archivo = documento['nombre_archivo']                               
+                
+                # Intentar eliminar el archivo físico
+                if ruta_archivo:
+                    try:                        
+                        from flask import current_app                        
+                        # Opción 1: Si tu app está en la raíz del proyecto
+                        ruta_completa = os.path.join(current_app.root_path, ruta_archivo)                                                                       
+                        ruta_completa = os.path.normpath(ruta_completa)                                               
+                        
+                        if os.path.exists(ruta_completa):
+                            os.remove(ruta_completa)                            
+                        else:
+                            # Intentar rutas alternativas
+                            rutas_alternativas = [
+                                os.path.join(os.getcwd(), ruta_archivo),
+                                os.path.join(current_app.root_path, ruta_archivo),
+                                os.path.abspath(ruta_archivo)
+                            ]
+                            
+                            logger.warning(f"Archivo no encontrado en: {ruta_completa}")
+                            logger.info(f"Intentando rutas alternativas...")
+                            
+                            archivo_eliminado = False
+                            for ruta_alt in rutas_alternativas:
+                                ruta_alt = os.path.normpath(ruta_alt)
+                                logger.info(f"Probando: {ruta_alt} - Existe: {os.path.exists(ruta_alt)}")
+                                
+                                if os.path.exists(ruta_alt):
+                                    os.remove(ruta_alt)
+                                    logger.info(f"Archivo eliminado desde ruta alternativa: {ruta_alt}")
+                                    archivo_eliminado = True
+                                    break
+                            
+                            if not archivo_eliminado:
+                                logger.error(f"No se pudo encontrar el archivo en ninguna ruta: {nombre_archivo}")
+                                # IMPORTANTE: No eliminar de BD si el archivo no se pudo eliminar
+                                raise Exception(f"No se pudo encontrar el archivo físico: {nombre_archivo}")
+
+                    except Exception as e:
+                        logger.error(f"Error al eliminar archivo físico: {str(e)}", exc_info=True)
+                        # Re-lanzar la excepción para evitar eliminar registro de BD
+                        raise Exception(f"Error al eliminar archivo físico: {str(e)}")
+                
+                # Eliminar registro de la BD
+                cursor.execute("DELETE FROM documentos WHERE iddocumento = %s", (iddocumento,))
+                
+                if cursor.rowcount == 0:
+                    raise ValueError(f"No se pudo eliminar el documento")
+                
+                conn.commit()
+                logger.info(f"Documento {iddocumento} ({nombre_archivo}) eliminado de la BD")
+                return True
+                
+        except ValueError as ve:
+            logger.warning(str(ve))
+            raise ve
+            
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al eliminar documento {iddocumento}: {str(e)}", exc_info=True)
+            raise e
+
+        finally:
+            conn.close()
+
+
+
+
+# ============================================================================
+# CRUD DE DIAGNÓSTICOS DE SOSPECHA
+# ============================================================================
+
+    # -------------------- CREATE --------------------
+    @staticmethod
+    def crear_diagnostico(nombre, periodo_incubacion):
+        """Crea un nuevo diagnóstico de sospecha"""
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:
+                sql = """
+                    INSERT INTO diagsospecha (nombre, periodo_incubacion)
+                    VALUES (%s, %s)
+                """
+                cursor.execute(sql, (nombre, periodo_incubacion))
+                conn.commit()
+                diagnostico_id = cursor.lastrowid
+                logger.info(f"Diagnóstico creado con ID {diagnostico_id}")
+                return diagnostico_id
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al crear diagnóstico: {str(e)}")
+            raise e
+        finally:
+            conn.close()
+
+
+    # -------------------- READ --------------------
+    @staticmethod
+    def obtener_todos_diagnosticos():
+        """Obtiene todos los diagnósticos de sospecha"""
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT iddiag, nombre, periodo_incubacion
+                    FROM diagsospecha
+                    ORDER BY nombre ASC
+                """)
+                return cursor.fetchall()
+        finally:
+            conn.close()
+
+
+    @staticmethod
+    def obtener_diagnostico_por_id(iddiag):
+        """Obtiene un diagnóstico específico por su ID"""
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT iddiag, nombre, periodo_incubacion
+                    FROM diagsospecha
+                    WHERE iddiag = %s
+                """, (iddiag,))
+                return cursor.fetchone()
+        finally:
+            conn.close()
+
+
+    # -------------------- UPDATE --------------------
+    @staticmethod
+    def actualizar_diagnostico(iddiag, nombre, periodo_incubacion):
+        """Actualiza un diagnóstico existente"""
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:
+                sql = """
+                    UPDATE diagsospecha
+                    SET nombre = %s,
+                        periodo_incubacion = %s
+                    WHERE iddiag = %s
+                """
+                cursor.execute(sql, (nombre, periodo_incubacion, iddiag))
+                conn.commit()
+
+                if cursor.rowcount > 0:
+                    logger.info(f"Diagnóstico {iddiag} actualizado correctamente")
+                else:
+                    logger.warning(f"Diagnóstico {iddiag} no encontrado")
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al actualizar diagnóstico {iddiag}: {str(e)}")
+            raise e
+        finally:
+            conn.close()
+
+
+    # -------------------- DELETE --------------------
+    @staticmethod
+    def eliminar_diagnostico(iddiag):
+        """Elimina un diagnóstico de sospecha"""
+        conn = MySQLConnection().connect()
+        try:
+            with conn.cursor() as cursor:
+                # Verificar si existe
+                cursor.execute("SELECT iddiag FROM diagsospecha WHERE iddiag = %s", (iddiag,))
+                diagnostico = cursor.fetchone()
+
+                if not diagnostico:
+                    raise ValueError(f"No existe el diagnóstico con ID {iddiag}")
+
+                # Eliminar
+                cursor.execute("DELETE FROM diagsospecha WHERE iddiag = %s", (iddiag,))
+                conn.commit()
+                logger.info(f"Diagnóstico {iddiag} eliminado correctamente")
+                return True
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error al eliminar diagnóstico {iddiag}: {str(e)}")
+            raise e
         finally:
             conn.close()

@@ -535,6 +535,7 @@
 
             <!-- Formulario -->
             <form class="form-section" method="POST" action="{{ url_for('auth_bp.login') }}" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <!-- Alertas dinámicas -->
                 <div id="alert-container"></div>
 

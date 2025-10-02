@@ -2,6 +2,7 @@
 content %}
 
 <form class="form-container" id="form_update" method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <!-- Campos del brote -->
   <input type="hidden" name="idbrote" value="{{ brote.idbrote }}" />
   <input type="hidden" name="origen" value="{{ origen }}" />
@@ -405,7 +406,24 @@ content %}
                     value="{{ doc.fechnotinmed or '' }}"
                   />
                 </td>
-                <td>--</td>
+                <td style="display: flex; width: 100%; justify-content: center; align-items: center;">                  
+                  <a href="{{ url_for('brotes_bp.descargar_documento', doc_id=doc.iddocumento) }}"
+                    class="btn btn-sm btn-outline-primary me-1 btn-descargar" 
+                    title="Descargar"
+                    data-doc-id="{{ doc.iddocumento }}"
+                    data-nombre="{{ doc.nombre_archivo }}"
+                    target="_blank">
+                    <i class="fas fa-download"></i>
+                  </a>                 
+                  <!-- Botón Eliminar -->
+                  <a href="javascript:void(0);"                  
+                    class="btn btn-sm btn-outline-danger btn-eliminar-doc" 
+                    title="Eliminar"
+                    data-doc-id="{{ doc.iddocumento }}"
+                    data-nombre="{{ doc.nombre_archivo }}">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                </td>
               </tr>
               {% endfor %} {% else %}
               <tr>
@@ -427,13 +445,13 @@ content %}
   <div class="mt-4 btn_g">
     <!-- A: -->
     {% if origen == 'brotes_pendientes' %}
-      <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" type="button" class="btn button_add" style="margin-right: 50px">Regresar</a>
+      <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" type="button" class="btn button_submit" style="margin-right: 50px">Regresar</a>
     {% elif origen == 'brotes_activos' %}
-      <a href="{{ url_for('brotes_bp.brotes_activos') }}" type="button" class="btn button_add" style="margin-right: 50px">Regresar</a>
+      <a href="{{ url_for('brotes_bp.brotes_activos') }}" type="button" class="btn button_submit" style="margin-right: 50px">Regresar</a>
     {% else %}
-      <a href="{{ url_for('brotes_bp.lista_brotes') }}" type="button" class="btn button_add" style="margin-right: 50px">Regresar</a>
+      <a href="{{ url_for('brotes_bp.lista_brotes') }}" type="button" class="btn button_submit" style="margin-right: 50px">Regresar</a>
     {% endif %}
-    <button type="submit" class="btn button_add">Guardar</button>
+    <button type="submit" class="btn button_submit">Guardar</button>
   </div>
 </form>
 
@@ -504,4 +522,140 @@ content %}
 <script src="{{ url_for('static', filename='js/documentos.js') }}"></script>
 <script src="{{ url_for('static', filename='js/form_update.js') }}"></script>
 
+<script>
+
+
+$(document).ready(function() {
+    
+    // ===== DESCARGAR DOCUMENTO (OPCIONAL) =====
+    // Solo si quieres mostrar mensaje al descargar
+    $('.btn-descargar').on('click', function() {
+        const nombreArchivo = $(this).data('nombre');
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Descargando...',
+                text: `Descargando: ${nombreArchivo}`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+    
+    
+   
+     // ===== ELIMINAR DOCUMENTO =====
+    // $('.btn-eliminar-doc').on('click', function(e) {
+    //     e.preventDefault();
+        
+    //     const docId = $(this).data('doc-id');
+    //     const nombreArchivo = $(this).data('nombre');
+    //     const url = `/brotes/documento/eliminar/${docId}`;
+    //     const filaDocumento = $(this).closest('tr');
+        
+    //     console.log('Doc ID:', docId);
+    //     console.log('Nombre:', nombreArchivo);
+    //     console.log('URL:', url);
+        
+    //     if (typeof Swal !== 'undefined') {
+    //         Swal.fire({
+    //             title: '¿Eliminar documento?',
+    //             html: `
+    //                 <p class="mb-2">¿Está seguro de eliminar el documento:</p>
+    //                 <p class="mb-2"><strong>${nombreArchivo}</strong></p>
+    //                 <div class="alert alert-warning mb-0">
+    //                     <i class="fas fa-exclamation-triangle me-2"></i>
+    //                     Esta acción no se puede deshacer
+    //                 </div>
+    //             `,
+    //             icon: 'warning',
+    //             showCancelButton: true,
+    //             confirmButtonColor: '#d33',
+    //             cancelButtonColor: '#6c757d',
+    //             confirmButtonText: '<i class="fas fa-trash me-2"></i>Sí, eliminar',
+    //             cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+    //             customClass: {
+    //                 confirmButton: 'btn btn-danger',
+    //                 cancelButton: 'btn btn-secondary'
+    //             },
+    //             buttonsStyling: false,
+    //             reverseButtons: true
+    //         }).then((result) => {
+    //             if (result.isConfirmed) {
+    //                 Swal.fire({
+    //                     title: 'Eliminando...',
+    //                     text: 'Por favor espere',
+    //                     allowOutsideClick: false,
+    //                     didOpen: () => { Swal.showLoading(); }
+    //                 });
+                    
+    //                 fetch(url, {
+    //                     method: 'DELETE',
+    //                     headers: { 'Content-Type': 'application/json' }
+    //                 })
+    //                 .then(response => {
+    //                     console.log('Response status:', response.status);
+    //                     if (!response.ok) {
+    //                         return response.json().then(err => {
+    //                             throw new Error(err.error || 'Error al eliminar');
+    //                         });
+    //                     }
+    //                     return response.json();
+    //                 })
+    //                 .then(data => {
+    //                     console.log('Éxito:', data);
+    //                     filaDocumento.fadeOut(400, function() {
+    //                         $(this).remove();
+                            
+    //                         const tbody = $('#tablaDocumentos tbody').first();
+    //                         if (tbody.find('tr').length === 0) {
+    //                             tbody.html(`
+    //                                 <tr>
+    //                                     <td colspan="5" class="text-center">
+    //                                         No hay documentos asociados a este brote.
+    //                                     </td>
+    //                                 </tr>
+    //                             `);
+    //                         }
+    //                     });
+                        
+    //                     Swal.fire({
+    //                         icon: 'success',
+    //                         title: '¡Eliminado!',
+    //                         text: 'Documento eliminado correctamente',
+    //                         timer: 2000,
+    //                         showConfirmButton: false
+    //                     });
+    //                 })
+    //                 .catch(error => {
+    //                     console.error('Error:', error);
+    //                     Swal.fire({
+    //                         icon: 'error',
+    //                         title: 'Error',
+    //                         text: error.message || 'No se pudo eliminar el documento'
+    //                     });
+    //                 });
+    //             }
+    //         });
+    //     } else {
+    //         // Sin SweetAlert2
+    //         if (confirm(`¿Eliminar ${nombreArchivo}?\n\nNo se puede deshacer.`)) {
+    //             fetch(url, {
+    //                 method: 'DELETE',
+    //                 headers: { 'Content-Type': 'application/json' }
+    //             })
+    //             .then(response => response.ok ? response.json() : Promise.reject('Error'))
+    //             .then(data => {
+    //                 alert('Documento eliminado correctamente');
+    //                 filaDocumento.fadeOut(400, function() { $(this).remove(); });
+    //             })
+    //             .catch(error => alert('Error al eliminar: ' + error));
+    //         }
+    //     }
+    // });
+
+
+});
+</script>
 {% endblock %}

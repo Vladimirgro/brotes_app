@@ -19,14 +19,20 @@ APP_DIR = os.path.join(BASE_DIR, 'app')  # ← Esto apunta a la carpeta app
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'f43afbca9a1a7d436fc1baf66e20cda47fb300f73a25b1c5')
-    # app.config['WTF_CSRF_ENABLED'] = True  PENDIETE CONFIGURAR
-    
+
+    # Protección CSRF
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = None  # Sin límite de tiempo para desarrollo
+    WTF_CSRF_SSL_STRICT = False  # True en producción con HTTPS
+
     BASE_DIR = APP_DIR  # ← Añade esto
     UPLOAD_FOLDER = os.path.join(APP_DIR, 'static', 'uploads')  # ← Corrección aquí
     
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
     
+    
+    ALLOWED_EXTENSIONS = {'.docx', '.doc', '.xlsx', '.xlsm', '.xls', '.pdf'}
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     
         

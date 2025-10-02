@@ -2,9 +2,13 @@
 
 {% block title %}Registrar Brote{% endblock %}
 
+
 {% block content %}
 
+{% include 'brotes/navs.html' %}
+
 <form class="form-container" id="broteForm" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <h2>Registro de brote</h2>
 
     <!-- Tipo de Brote -->
@@ -210,8 +214,8 @@
         </div>
     </div>
     <div class="mt-4 btn_g">
-        <a href="{{ url_for('brotes_bp.lista_brotes') }}" type="button" class="btn button_add" style="margin-right: 50px;">Regresar</a>
-        <button type="submit" class="btn button_add">Guardar</button>        
+        <a href="{{ url_for('brotes_bp.lista_brotes') }}" type="button" class="btn button_submit" style="margin-right: 50px;">Regresar</a>
+        <button type="submit" class="btn button_submit">Guardar</button>        
     </div>
 
 </form>

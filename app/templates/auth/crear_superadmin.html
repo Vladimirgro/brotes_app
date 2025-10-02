@@ -4,6 +4,7 @@
 {% block content %}
 <h2>Crear Super Administrador</h2>
 <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="mb-3">
         <label for="nombre">Nombre</label>
         <input type="text" name="nombre" class="form-control" required>

@@ -1,10 +1,11 @@
-from flask import Blueprint, render_template, request, jsonify, send_file, url_for, flash, redirect, current_app
+from flask import Blueprint, render_template, request, jsonify, send_file, url_for, flash, redirect, current_app, session, send_file, send_from_directory
 from flask_login import current_user
 from app.models import brote_model
 from app.models.brote_model import BroteModel
 import logging
-import io
+import io, os
 from app.forms import BroteForm
+from app import csrf 
 
 import pandas as pd
 from app.middleware.auth_middleware import rol_requerido
@@ -21,7 +22,8 @@ brotes_bp = Blueprint('brotes_bp', __name__, url_prefix='/brotes')
 #-------------  FUNCIONES DE CALCULOS --------------------------------------
 #Endpoint para calcular la suma
 @brotes_bp.route('/sumar', methods=['POST'])
-def sumar():    
+@csrf.exempt
+def sumar():
     # Obtener los valores del JSON
     data = request.get_json()  # Obtener los datos JSON del cuerpo de la solicitud
     
@@ -38,6 +40,7 @@ def sumar():
 
 #Endpint para calcular tasa de ataque
 @brotes_bp.route('/ataque', methods=['POST'])
+@csrf.exempt
 def ataque():
     data = request.get_json()
     probables = data.get('probables', 1)  # Evita división por cero
@@ -55,41 +58,35 @@ def ataque():
 
 
 #Funcion axuliar para create y update brotes
-def obtener_datos_brote_y_rel(form):
-    # Obtener y limpiar los campos del formulario
+# Obtener y limpiar los campos del formulario
+def obtener_datos_brote_y_rel(form):    
     lugar = form.get('lugar', '').strip().upper()
     institucion = form.get('institucion', '').strip()
     tipoevento = form.get('evento', '').strip()
     municipio = form.get('municipio', '').strip()
     jurisdiccion = form.get('juris', '').strip()
-    diagsospecha = form.get('diagsospecha', '').strip()
+    diagsospecha = form.get('diagsospecha', '').strip()           
     
-        
-    # Verificar que tipoevento no esté vacío
     if not tipoevento:
         raise ValueError("El campo 'tipoevento' es obligatorio y no puede estar vacío.")
-
-    # Obtener los IDs correspondientes para tipoevento, institucion, municipio, jurisdiccion y diagsospecha
-    idtipoevento = BroteModel.get_catalog_id('tipoeventos', tipoevento, 'idtipoevento')
     
-    # Obtener los IDs correspondientes para las otras columnas utilizando la función genérica
+    idtipoevento = BroteModel.get_catalog_id('tipoeventos', tipoevento, 'idtipoevento')
+        
     idinstitucion = BroteModel.get_catalog_id('instituciones', institucion, 'idinstitucion')    
     idmunicipio = BroteModel.get_catalog_id('municipios', municipio, 'idmunicipio')
     idjurisdiccion = BroteModel.get_catalog_id('jurisdicciones', jurisdiccion, 'idjurisdiccion')
-    iddiag = BroteModel.get_catalog_id('diagsospecha', diagsospecha, 'iddiag')
-        
-    # Validar que todos los campos de catálogo sean válidos
+    iddiag = BroteModel.get_catalog_id('diagsospecha', diagsospecha, 'iddiag')        
+    
     if not all([idtipoevento, idinstitucion, idmunicipio, idjurisdiccion, iddiag]):
         raise ValueError('Uno o más campos de catálogo no son válidos')
-
-    # Crear el diccionario con los datos del brote
+    
     datos_brote = {
         'lugar': lugar or '',
         'unidadnotif': form.get('unidad', '').strip().upper(),
         'domicilio': form.get('domicilio', '').strip().upper(),
         'localidad': form.get('localidad', '').strip().upper(),
         'fechnotifica': form.get('fechnotifica') or None,
-        'fechinicio': form.get('fecha_inicio') or 0,
+        'fechinicio': form.get('fecha_inicio') or None,
         'casosprob': form.get('probables') or 0,
         'casosconf': form.get('confirmados') or 0,
         'defunciones': form.get('defunciones') or 0,
@@ -101,8 +98,7 @@ def obtener_datos_brote_y_rel(form):
         'pobmascexp': form.get('pobmascexpuesta') or 0,
         'pobfemexp': form.get('pobfemexpuesta') or 0
     }
-
-    # Crear el diccionario con los IDs de las relaciones
+    
     ids_rel = {
         'idtipoevento': idtipoevento,
         'idinstitucion': idinstitucion,
@@ -120,6 +116,7 @@ def obtener_datos_brote_y_rel(form):
 #Endpoint para mostrar formulario y cargar catalogos
 @brotes_bp.route('/registrar', methods=['GET'], endpoint='formulario')
 @login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
 def mostrar_formulario_brote():
     catalogos = BroteModel.obtener_catalogos()
     return render_template('brotes/register.html', **catalogos)
@@ -135,33 +132,50 @@ def registrar_con_documentos():
     form = request.form
 
     try:
+        logger.info(f"Iniciando registro de brote por usuario: {current_user.nombre}")
+
         # Obtener los datos y los IDs para el brote a actualizar
         datos_brote, ids_rel = obtener_datos_brote_y_rel(form)
-        
-        #4. Insertar brote
+               
         brote_id = BroteModel.insertar_brote(datos_brote, ids_rel)
+        logger.info(f"Brote {brote_id} creado exitosamente por {current_user.nombre} (ID: {current_user.id})")
 
-        #5. Procesar documentos desde FormData
+        # Procesar documentos
+        documentos_procesados = 0
+        documentos_fallidos = 0
         i = 0
+
         while f'documentos[{i}][archivo]' in request.files:
             archivo = request.files[f'documentos[{i}][archivo]']
             tipo = form.get(f'documentos[{i}][tipo]', '')
             folio = form.get(f'documentos[{i}][folio]', '') or None
-            fecha = form.get(f'documentos[{i}][fecha]', '') or None                       
+            fecha = form.get(f'documentos[{i}][fecha]', '') or None
+
+            nombre_archivo = archivo.filename if hasattr(archivo, 'filename') else 'Sin nombre'
 
             try:
                 BroteModel.guardar_documento(brote_id, archivo, tipo, folio, fecha)
-                
+                documentos_procesados += 1
+                logger.info(f"Documento guardado: {nombre_archivo} (Tipo: {tipo}, Brote ID: {brote_id})")
+
             except Exception as e:
-                nombre_archivo = archivo.filename if hasattr(archivo, 'filename') else str(archivo)
-                logger.warning(f"Documento omitido ({nombre_archivo}): {e}", exc_info=True)                
-            
+                documentos_fallidos += 1
+                logger.warning(f"Documento omitido ({nombre_archivo}): {str(e)}", exc_info=True)
+
             i += 1
-            
-        return jsonify({'message': 'Brote registrado correctamente'}), 201
+
+        logger.info(f"Registro completado - Brote ID: {brote_id}, "
+                   f"Documentos procesados: {documentos_procesados}, "
+                   f"Documentos fallidos: {documentos_fallidos}")
+
+        return jsonify({
+            'message': 'Brote registrado correctamente',
+            'brote_id': brote_id,
+            'documentos_procesados': documentos_procesados
+        }), 201
 
     except Exception as e:
-        logger.error(f"Error al registrar brote: {e}", exc_info=True)
+        logger.error(f"Error al registrar brote: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -179,6 +193,7 @@ def lista_brotes():
 
 #End ponint para exportar datos de la lista de brotes alta pendientes a excel
 @brotes_bp.route('/exportar_excel_lista', methods=['GET'])
+@login_required
 def exportar_excel_lista():
     logger = current_app.logger
     try:        
@@ -297,6 +312,7 @@ def exportar_excel_lista():
 
 
 @brotes_bp.route('/exportar_excel_alta_pendientes', methods=['GET'])
+@login_required
 def exportar_excel_alta_pendientes():
     brotes = BroteModel.obtener_edo_actual_pendientes()
 
@@ -313,6 +329,7 @@ def exportar_excel_alta_pendientes():
 
  
 @brotes_bp.route('/exportar_excel_activos', methods=['GET'])
+@login_required
 def exportar_excel_activos():
     brotes = BroteModel.obtener_edo_actual_activos()
 
@@ -323,7 +340,7 @@ def exportar_excel_activos():
 
     output.seek(0)
     return send_file(output, as_attachment=True,
-                     download_name='brotes_pendiente_alta.xlsx',
+                     download_name='brotes_activos.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     
     
@@ -378,7 +395,18 @@ def dashboard():
     #     return redirect(url_for('brotes.login'))  # o la ruta principal que tengas
 
 
-
+@brotes_bp.route('/brotes_completos', methods=['GET'])
+@login_required
+def brotes_completos():
+    brotes = BroteModel.obtener_todos_los_brotes()
+    return render_template(
+        'brotes/lista.html',
+        brotes=brotes,
+        titulo="Listado Nominal de Brotes",
+        encabezado="Listado Nominal de Brotes",
+        export_url=url_for('brotes_bp.exportar_excel_lista')
+    )
+    
 
 #End point para listar brotes PENDIENTE ALTA
 @brotes_bp.route('/brotes_pendientes', methods=['GET'])
@@ -411,6 +439,7 @@ def brotes_activos():
 #-------------  3. FUNCIONES UPDATE --------------------------------------
 #Endpoint para mostrar datos en el formulario y poder ACTUALIZAR
 @brotes_bp.route('/<int:idbrote>/editar', methods=['GET'])
+@login_required
 def editar_brote(idbrote):
     logger = current_app.logger
     # Detectar de dónde viene la solicitud
@@ -478,18 +507,18 @@ def actualizar_brote(idbrote):
     files = request.files   
         
     try:
+        # Log del inicio de la operación
+        logger.info(f"Intentando actualizar brote {idbrote} por {current_user.nombre} (ID: {current_user.id})")        
+
         #Obtener los datos y los IDs para el brote a actualizar
         datos_brote, ids_rel = obtener_datos_brote_y_rel(form)
-        
-         # Validación de idtipoevento (asegurarse de que no sea vacío o None)
+
+        # Validación de idtipoevento (asegurarse de que no sea vacío o None)
         if not ids_rel.get('idtipoevento'):
             raise ValueError("El campo 'idtipoevento' es obligatorio y debe tener un valor válido.")
-        
+
         BroteModel.actualizar_brote(idbrote, datos_brote, ids_rel)
-                
-            # Log del inicio de la operación
-        logger.info(f"Iniciando actualización de brote {idbrote} por usuario {current_user.id if current_user.is_authenticated else 'Anónimo'}")
-        logger.debug(f"Origen: {origen}, State: {state}")
+        logger.info(f"Brote {idbrote} actualizado exitosamente por {current_user.nombre} (ID: {current_user.id})")
        
         # Documentos existentes
         i = 0
@@ -586,3 +615,313 @@ def get_origen_texto(origen):
             return 'Brotes Activos'
         else:
             return 'Lista de Brotes'
+
+
+
+@brotes_bp.route('/eliminar/<int:idbrote>', methods=['DELETE'])
+@login_required
+@rol_requerido('super_administrador','jefe_departamento','coordinador_estatal')
+def eliminar_brote(idbrote):
+    logger = current_app.logger
+    try:
+        logger.info(f"Intentando eliminar brote {idbrote}")  # ← Agregar log         
+        usuario_id = session.get('usuario_id')
+        
+        brote = BroteModel.obtener_brote(idbrote)
+        if not brote:
+            return jsonify({'error': f'Brote {idbrote} no encontrado'}), 404
+        
+        BroteModel.eliminar_brote(idbrote)
+        logger.info(f"Brote {idbrote} eliminado por {current_user.nombre} (ID: {current_user.id})")
+        
+        return jsonify({'message': 'Brote eliminado correctamente', 'brote_id': idbrote}), 200
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 400
+    
+    except Exception as e:
+        logger.error(f"Error: {e}", exc_info=True)
+        return jsonify({'error': f'Error al eliminar: {str(e)}'}),500
+
+
+
+
+# Ruta para descargar documento
+from flask import send_from_directory
+
+@brotes_bp.route('/documento/descargar/<int:doc_id>')
+@login_required
+def descargar_documento(doc_id):
+    logger = current_app.logger
+    
+    try:
+        # Obtener información del documento
+        documento = BroteModel.obtener_documento_por_id(doc_id)
+        
+        if not documento:
+            logger.error(f"Documento {doc_id} no encontrado en BD")
+            flash('Documento no encontrado', 'error')
+            return redirect(request.referrer or url_for('brotes_bp.dashboard'))
+        
+                # Verificar longitud
+        if isinstance(documento, (tuple, list)):
+            logger.info(f"Longitud del documento: {len(documento)}")
+            for i, valor in enumerate(documento):
+                logger.info(f"  [{i}] = {valor}")
+        
+        # Índices correctos según tu estructura
+        nombre_archivo = documento['nombre_archivo']
+        ruta_archivo = documento['path']
+        
+        logger.info(f"Documento: {nombre_archivo}")
+        logger.info(f"Ruta BD: {ruta_archivo}")
+        
+        # Remover "static/" si existe
+        if ruta_archivo.startswith('static/'):
+            ruta_relativa = ruta_archivo[7:]  # Quitar "static/"
+        elif ruta_archivo.startswith('static\\'):
+            ruta_relativa = ruta_archivo[7:]  # Quitar "static\"
+        else:
+            ruta_relativa = ruta_archivo
+        
+        # Normalizar barras
+        ruta_relativa = ruta_relativa.replace('/', os.sep).replace('\\', os.sep)
+        
+        # Separar directorio y nombre de archivo
+        directorio = os.path.dirname(ruta_relativa)
+        archivo = os.path.basename(ruta_relativa)
+        
+        # Ruta completa del directorio
+        directorio_completo = os.path.join(current_app.static_folder, directorio)
+        
+        logger.info(f"Directorio: {directorio_completo}")
+        logger.info(f"Archivo: {archivo}")
+        
+        # Verificar que existe
+        ruta_completa = os.path.join(directorio_completo, archivo)
+        if not os.path.exists(ruta_completa):
+            logger.error(f"Archivo no existe: {ruta_completa}")
+            flash('El archivo no existe en el servidor', 'error')
+            return redirect(request.referrer or url_for('brotes_bp.dashboard'))
+        
+        logger.info(f"Descargando por: {current_user.nombre if current_user.is_authenticated else 'Anónimo'}")
+        
+        return send_from_directory(
+            directorio_completo,
+            archivo,
+            as_attachment=True,
+            download_name=nombre_archivo
+        )
+        
+    except Exception as e:
+        logger.error(f"Error al descargar documento {doc_id}: {e}", exc_info=True)
+        flash(f'Error al descargar: {str(e)}', 'error')
+        return redirect(request.referrer or url_for('brotes_bp.dashboard'))
+
+
+
+# Ruta para eliminar documento
+@brotes_bp.route('/documento/eliminar/<int:doc_id>', methods=['DELETE'])
+@login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
+@csrf.exempt
+def eliminar_documento(doc_id):
+    logger = current_app.logger
+    
+    try:        
+        documento = BroteModel.obtener_documento_por_id(doc_id)
+        
+        if not documento:
+            return jsonify({
+                'success': False,
+                'mensaje': f'No se encontró el documento con ID {doc_id}'
+            }), 404  
+                
+        nombre_archivo = documento['nombre_archivo']
+        
+        # Eliminar documento
+        BroteModel.eliminar_documento(doc_id)
+        
+        logger.info(f"Documento {doc_id} ({nombre_archivo}) eliminado por {current_user.nombre} (ID: {current_user.id})")
+        
+        return jsonify({
+            'success': True,
+            'mensaje': 'Documento eliminado correctamente',
+            'doc_id': doc_id
+        }), 200
+        
+    except ValueError as ve:
+        logger.warning(f"Error de validación: {ve}")
+        return jsonify({
+            'success': False,
+            'mensaje': str(ve)
+        }), 400
+        
+    except Exception as e:
+        logger.error(f"Error al eliminar documento {doc_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'mensaje': f'Error al eliminar: {str(e)}'
+        }), 500
+
+
+
+
+# ============================================================================
+# CRUD DE DIAGNÓSTICOS DE SOSPECHA
+# ============================================================================
+
+# ==================== CREATE ====================
+@brotes_bp.route('/diagnosticos/registrar', methods=['GET'])
+@login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
+def mostrar_formulario_diagnostico():
+    """Muestra el formulario para crear un nuevo diagnóstico"""
+    return render_template('diagnosticos/register.html')
+
+
+@brotes_bp.route('/diagnosticos/registrar', methods=['POST'])
+@login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
+def crear_diagnostico():
+    """Crea un nuevo diagnóstico de sospecha"""
+    logger = current_app.logger
+
+    try:
+        nombre = request.form.get('nombre', '').strip().upper()
+        periodo_incubacion = request.form.get('periodo_incubacion', '').strip()
+
+        # Validaciones
+        if not nombre:
+            return jsonify({'error': 'El nombre es obligatorio'}), 400
+
+        if not periodo_incubacion or not periodo_incubacion.isdigit():
+            return jsonify({'error': 'El periodo de incubación debe ser un número'}), 400
+
+        periodo_incubacion = int(periodo_incubacion)
+
+        if periodo_incubacion <= 0:
+            return jsonify({'error': 'El periodo de incubación debe ser mayor a 0'}), 400
+
+        # Crear diagnóstico
+        diagnostico_id = BroteModel.crear_diagnostico(nombre, periodo_incubacion)
+
+        logger.info(f"Diagnóstico creado: {nombre} (ID: {diagnostico_id})")
+
+        return jsonify({
+            'message': 'Diagnóstico creado correctamente',
+            'diagnostico_id': diagnostico_id
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error al crear diagnóstico: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== READ ====================
+@brotes_bp.route('/diagnosticos/lista', methods=['GET'])
+@login_required
+def lista_diagnosticos():
+    """Lista todos los diagnósticos de sospecha"""
+    try:
+        diagnosticos = BroteModel.obtener_todos_diagnosticos()
+        return render_template('diagnosticos/lista.html', diagnosticos=diagnosticos)
+    except Exception as e:
+        current_app.logger.error(f"Error al listar diagnósticos: {str(e)}")
+        flash('Error al cargar la lista de diagnósticos', 'error')
+        return redirect(url_for('brotes_bp.dashboard'))
+
+
+# ==================== UPDATE ====================
+@brotes_bp.route('/diagnosticos/<int:iddiag>/editar', methods=['GET'])
+@login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
+def editar_diagnostico(iddiag):
+    """Muestra el formulario de edición de un diagnóstico"""
+    logger = current_app.logger
+
+    try:
+        diagnostico = BroteModel.obtener_diagnostico_por_id(iddiag)
+
+        if not diagnostico:
+            flash('El diagnóstico especificado no existe', 'error')
+            return redirect(url_for('brotes_bp.lista_diagnosticos'))
+
+        return render_template('diagnosticos/edit.html', diagnostico=diagnostico)
+
+    except Exception as e:
+        logger.error(f"Error al cargar diagnóstico {iddiag}: {str(e)}", exc_info=True)
+        flash('Error al cargar el diagnóstico', 'error')
+        return redirect(url_for('brotes_bp.lista_diagnosticos'))
+
+
+@brotes_bp.route('/diagnosticos/actualizar/<int:iddiag>', methods=['POST'])
+@login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
+def actualizar_diagnostico(iddiag):
+    """Actualiza un diagnóstico existente"""
+    logger = current_app.logger
+
+    try:
+        nombre = request.form.get('nombre', '').strip().upper()
+        periodo_incubacion = request.form.get('periodo_incubacion', '').strip()
+
+        # Validaciones
+        if not nombre:
+            return jsonify({'error': 'El nombre es obligatorio'}), 400
+
+        if not periodo_incubacion or not periodo_incubacion.isdigit():
+            return jsonify({'error': 'El periodo de incubación debe ser un número'}), 400
+
+        periodo_incubacion = int(periodo_incubacion)
+
+        if periodo_incubacion <= 0:
+            return jsonify({'error': 'El periodo de incubación debe ser mayor a 0'}), 400
+
+        # Actualizar diagnóstico
+        BroteModel.actualizar_diagnostico(iddiag, nombre, periodo_incubacion)
+
+        logger.info(f"Diagnóstico {iddiag} actualizado: {nombre}")
+
+        return jsonify({
+            'message': 'Diagnóstico actualizado correctamente',
+            'redirect_url': url_for('brotes_bp.lista_diagnosticos')
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error al actualizar diagnóstico {iddiag}: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== DELETE ====================
+@brotes_bp.route('/diagnosticos/eliminar/<int:iddiag>', methods=['DELETE'])
+@login_required
+@rol_requerido('super_administrador', 'jefe_departamento')
+def eliminar_diagnostico(iddiag):
+    """Elimina un diagnóstico de sospecha"""
+    logger = current_app.logger
+
+    try:
+        diagnostico = BroteModel.obtener_diagnostico_por_id(iddiag)
+
+        if not diagnostico:
+            return jsonify({
+                'error': f'Diagnóstico {iddiag} no encontrado'
+            }), 404
+
+        nombre = diagnostico['nombre']
+
+        BroteModel.eliminar_diagnostico(iddiag)
+
+        logger.info(f"Diagnóstico {iddiag} ({nombre}) eliminado")
+
+        return jsonify({
+            'message': 'Diagnóstico eliminado correctamente',
+            'diagnostico_id': iddiag
+        }), 200
+
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 400
+
+    except Exception as e:
+        logger.error(f"Error al eliminar diagnóstico {iddiag}: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Error al eliminar: {str(e)}'}), 500

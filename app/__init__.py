@@ -1,11 +1,13 @@
 from flask import Flask
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 from app.models.user_model import UserModel
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
@@ -16,7 +18,10 @@ def create_app():
 
     # CONFIGURAR LOGGER ANTES DE USARLO
     configure_logger(app)
-    
+
+    # Inicializar CSRF Protection
+    csrf.init_app(app)
+
     # Inicializa LoginManager
     login_manager.init_app(app)
     
