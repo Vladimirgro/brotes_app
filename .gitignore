@@ -1,0 +1,36 @@
+# Entorno virtual
+venv/
+env/
+
+# Variables de entorno
+.env
+
+# Cachés de Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Archivos de la app que son solo datos
+app/files/
+*.xls
+*.xlsx
+*.xlsm
+*.xlk
+*.docx
+~$*.docx
+~$*.xlsx
+
+# Archivos subidos por la app (NO código)
+app/static/uploads/
+
+# Logs
+logs/
+*.log
+
+# VS Code
+.vscode/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

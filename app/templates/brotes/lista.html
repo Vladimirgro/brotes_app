@@ -1,0 +1,593 @@
+{% extends "layout.html" %}
+
+{% block head %}
+
+<!-- DataTables + Botones -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+
+<!-- Estilos modernos glassmorphism -->
+<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/tabla_moderna.css') }}"> -->
+
+{% endblock %}
+
+{% block title %}Lista de Brotes{% endblock %}
+
+{% block content %}
+<!-- Definir el origen para esta página -->
+{% set page_origin = 'lista_brotes' %}
+
+<div>
+    {% include 'brotes/navs.html' %}
+</div>
+
+<!-- Filtro por fecha de inicio -->
+<div class="date-filter-container">
+    <div class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label for="rangoFecha" class="form-label mb-1">
+                <i class="fas fa-calendar-alt me-1"></i>Fecha de inicio
+            </label>
+            <select id="rangoFecha" class="form-select form-select-sm">
+                <option value="todos">Todos</option>
+                <option value="hoy">Hoy</option>
+                <option value="ayer">Ayer</option>
+                <option value="ultima_semana">Última semana</option>
+                <option value="ultimo_mes">Último mes</option>
+                <option value="ultimo_trimestre">Trimestre</option>
+                <option value="ultimo_semestre">Semestre</option>
+                <option value="ultimo_anio">Año</option>
+                <option value="personalizado">Personalizado</option>
+            </select>
+        </div>
+        <div class="col-auto" id="fechaInicioContainer" style="display: none;">
+            <label for="fechaInicio" class="form-label mb-1">Desde</label>
+            <input type="date" id="fechaInicio" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto" id="fechaFinContainer" style="display: none;">
+            <label for="fechaFin" class="form-label mb-1">Hasta</label>
+            <input type="date" id="fechaFin" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto" id="btnFiltrarContainer" style="display: none;">
+            <button id="btnFiltrar" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Filtrar
+            </button>
+        </div>
+        <div class="col-auto" id="btnLimpiarContainer" style="display: none;">
+            <button id="btnLimpiar" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times me-1"></i>Limpiar
+            </button>
+        </div>
+        <div class="col-auto ms-auto">
+            <label class="form-label mb-1">
+                <i class="fas fa-search me-1"></i>Buscar
+            </label>
+            <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="Buscar en tabla...">
+        </div>
+        <div class="col-auto">
+            <label class="form-label mb-1">
+                <i class="fas fa-list me-1"></i>Mostrar
+            </label>
+            <select id="pageLength" class="form-select form-select-sm">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="table-container">
+    <table id="tablaBrotes" class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Tipo Evento</th>            
+                <th>Institución</th>
+                <th>Unidad Notificante</th>            
+                <th>Municipio</th>
+                <th>Jurisdicción</th>
+                <th>Fecha Notificación</th>
+                <th>Diagnóstico Sospecha</th>
+                <th>Fecha Inicio</th>            
+                <th>Fecha Último Caso</th>            
+                <th>Folio Notinmed Inicial</th>            
+                <th>Estatus</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for brote in brotes %}
+            <tr>
+                <td>{{ brote['idbrote'] }}</td>
+                <td>{{ brote['Tipo evento'] }}</td>            
+                <td>{{ brote['Institución'] }}</td>
+                <td>{{ brote['Unidad notificante'] or '' }}</td>            
+                <td>{{ brote['Municipio'] }}</td>
+                <td>{{ brote['Jurisdicción'] }}</td>
+                <td>{{ brote['Fecha notificación'].strftime('%d-%m-%Y') if brote['Fecha notificación'] else '' }}</td>
+                <td>{{ brote['Diagnóstico Sospecha'] }}</td>
+                <td>{{ brote['Fecha inicio'].strftime('%d-%m-%Y') if brote['Fecha inicio'] else '' }}</td>            
+                <td>{{ brote['Fecha Última Caso'].strftime('%d-%m-%Y') if brote['Fecha Última Caso'] else '' }}</td>                        
+                <td>{{ brote['Folio Notinmed Inicial'] or '' }}</td>            
+                <td style="display: flex; justify-content: center;">
+                    {% if brote['Estatus'] == 'Activo' %}
+                    <span class="badge bg-success">Activo</span>
+                    {% elif brote['Estatus'] == 'Pendiente Alta' %}
+                    <span class="badge bg-warning text-dark">Pendiente Alta</span>
+                    {% elif brote['Estatus'] == 'Alta' %}
+                    <span class="badge bg-secondary">Alta</span>
+                    {% else %}
+                    <span class="badge bg-info">{{ brote['Estatus'] or 'Sin estado' }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="btn-group">
+                        {% if current_user.is_authenticated and current_user.rol in ['coordinador_estatal',
+                        'jefe_departamento','super_administrador', 'consultor_externo'] %}
+                        <a href="{{ url_for('brotes_bp.editar_brote', idbrote=brote.idbrote) }}"
+                            class="btn btn-sm btn-outline-dark edit-btn" 
+                            title="Editar"
+                            data-idbrote="{{ brote['idbrote'] }}"
+                            data-origen="{{ page_origin }}">
+                            <i class="fas fa-edit"></i>
+                        </a>                          
+                        {% endif %}
+                        
+                        {% if current_user.is_authenticated and current_user.rol in ['coordinador_estatal',
+                        'jefe_departamento','super_administrador'] %}
+                        <a href="javascript:void(0);" 
+                            class="btn btn-sm btn-outline-danger delete-btn"
+                            data-idbrote="{{ brote.idbrote }}"
+                            data-lugar="{{ brote.lugar }}"
+                            title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery + DataTables -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+<!-- Extensiones para exportar -->
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<!-- Idioma español -->
+<script src="https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-MX.json"></script>
+
+
+<script>
+
+const csrfToken = '{{ csrf_token() }}';
+
+$(document).ready(function () {
+    // Clave única para el localStorage de esta página
+    const STORAGE_KEY = 'lista_brotes_datatable_state';
+
+    // ==================== FILTRO DE FECHAS (BACKEND) ====================
+
+    // Manejar cambio en el select de rango
+    $('#rangoFecha').on('change', function() {
+        const valor = $(this).val();
+
+        if (valor === 'personalizado') {
+            $('#fechaInicioContainer, #fechaFinContainer, #btnFiltrarContainer, #btnLimpiarContainer').show();
+        } else if (valor === 'todos') {
+            $('#fechaInicioContainer, #fechaFinContainer, #btnFiltrarContainer, #btnLimpiarContainer').hide();
+            window.location.href = '{{ url_for("brotes_bp.lista_brotes") }}';
+        } else {
+            $('#fechaInicioContainer, #fechaFinContainer').hide();
+            $('#btnFiltrarContainer, #btnLimpiarContainer').show();
+
+            // Redirigir al backend con el rango seleccionado
+            window.location.href = `{{ url_for("brotes_bp.lista_brotes") }}?rango=${valor}`;
+        }
+    });
+
+    // Botón aplicar filtro personalizado
+    $('#btnFiltrar').on('click', function() {
+        const fechaInicioStr = $('#fechaInicio').val();
+        const fechaFinStr = $('#fechaFin').val();
+
+        if (!fechaInicioStr || !fechaFinStr) {
+            alert('Por favor seleccione ambas fechas');
+            return;
+        }
+
+        const fechaInicio = new Date(fechaInicioStr);
+        const fechaFin = new Date(fechaFinStr);
+
+        if (fechaInicio > fechaFin) {
+            alert('La fecha de inicio no puede ser mayor que la fecha fin');
+            return;
+        }
+
+        // Redirigir al backend con fechas personalizadas
+        window.location.href = `{{ url_for("brotes_bp.lista_brotes") }}?fecha_inicio=${fechaInicioStr}&fecha_fin=${fechaFinStr}`;
+    });
+
+    // Botón limpiar filtro
+    $('#btnLimpiar').on('click', function() {
+        window.location.href = '{{ url_for("brotes_bp.lista_brotes") }}';
+    });
+
+    // Mantener selección del filtro si viene de URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const rangoParam = urlParams.get('rango');
+    const fechaInicioParam = urlParams.get('fecha_inicio');
+    const fechaFinParam = urlParams.get('fecha_fin');
+
+    if (rangoParam) {
+        $('#rangoFecha').val(rangoParam);
+        if (rangoParam !== 'todos' && rangoParam !== 'personalizado') {
+            $('#btnFiltrarContainer, #btnLimpiarContainer').show();
+        }
+    } else if (fechaInicioParam && fechaFinParam) {
+        $('#rangoFecha').val('personalizado');
+        $('#fechaInicio').val(fechaInicioParam);
+        $('#fechaFin').val(fechaFinParam);
+        $('#fechaInicioContainer, #fechaFinContainer, #btnFiltrarContainer, #btnLimpiarContainer').show();
+    }
+
+    // ==================== FIN FILTRO DE FECHAS ====================
+
+    // Configuración de DataTable con preservación de estado
+    const tableConfig = {
+        dom: 't<"row mt-3"<"col-sm-6"i><"col-sm-6"p>>',  // Solo tabla, info y paginación
+        pagingType: 'full_numbers',
+        searching: true,  // Habilitar búsqueda        
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-MX.json',
+            search: "Buscar:",
+            lengthMenu: "Mostrar _MENU_ registros",
+            info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            }
+        },
+        pageLength: 10,
+        
+        stateSave: true,
+        stateDuration: 60 * 60 * 24, // 24 horas
+        // Personalizar qué se guarda en el estado
+        stateSaveCallback: function(settings, data) {
+            // Guardar estado en localStorage
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        },
+        stateLoadCallback: function(settings) {
+            // Cargar estado desde localStorage
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : null;
+        }
+    };
+
+
+    // Inicializar DataTable
+    const table = $('#tablaBrotes').DataTable(tableConfig);
+
+    // ==================== CONECTAR CONTROLES PERSONALIZADOS ====================
+
+    // Conectar searchBox con búsqueda de DataTables
+    $('#searchBox').on('keyup', function() {
+        table.search(this.value).draw();
+    });
+
+    // Conectar pageLength con DataTables
+    $('#pageLength').on('change', function() {
+        table.page.len(parseInt(this.value)).draw();
+    });
+
+    // Establecer valor inicial del pageLength
+    $('#pageLength').val(table.page.len());
+
+    // ==================== FIN CONTROLES PERSONALIZADOS ====================
+
+    // ==================== SELECCIÓN DE FILAS (OPCIONAL) ====================
+
+    // Permitir seleccionar fila con click (excepto en botones)
+    $('#tablaBrotes tbody').on('click', 'tr', function(e) {
+        // No seleccionar si se hizo click en un botón o enlace
+        if ($(e.target).closest('a, button').length > 0) {
+            return;
+        }
+
+        // Toggle clase selected
+        $(this).toggleClass('selected');
+
+        // Si solo quieres una fila seleccionada a la vez, descomenta:
+        // $(this).toggleClass('selected').siblings().removeClass('selected');
+    });
+
+    // ==================== FIN SELECCIÓN DE FILAS ====================
+
+    // Manejar clic en botón editar con preservación de estado
+    $('.edit-btn').on('click', function(e) {
+        e.preventDefault();
+        
+        const idbrote = $(this).data('idbrote');
+        const origen = $(this).data('origen');
+        
+        // Obtener estado actual de la tabla
+        const currentState = table.state();
+        
+        // Crear parámetros adicionales para preservar el estado
+        const stateParams = {
+            page: table.page.info().page, // Página actual (0-indexada)
+            length: table.page.len(),     // Registros por página
+            search: table.search(),       // Término de búsqueda actual
+            order: table.order()          // Orden actual
+        };
+        
+        // Codificar el estado como base64 para pasarlo en la URL
+        const encodedState = btoa(JSON.stringify(stateParams));
+        
+        // Construir URL con todos los parámetros necesarios
+        const editUrl = "{{ url_for('brotes_bp.editar_brote', idbrote=0) }}".replace('0', idbrote) + 
+                       `?origen=${origen}&state=${encodedState}`;
+        
+        // Navegar a la página de edición
+        window.location.href = editUrl;
+    });
+    
+    // Restaurar estado si venimos de una edición
+    const returnState = urlParams.get('return_state');
+    
+    if (returnState) {
+        try {
+            const stateData = JSON.parse(atob(returnState));
+            
+            // Aplicar el estado restaurado
+            if (stateData.page !== undefined) {
+                table.page(stateData.page);
+            }
+            if (stateData.length) {
+                table.page.len(stateData.length);
+            }
+            if (stateData.search) {
+                table.search(stateData.search);
+            }
+            if (stateData.order) {
+                table.order(stateData.order);
+            }
+            
+            // Redibujar la tabla con el estado restaurado
+            table.draw(false);
+            
+            // Limpiar el parámetro de la URL sin recargar la página
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);            
+                        
+        } catch (error) {
+            console.error('Error al restaurar estado de tabla:', error);
+        }
+    }
+
+
+    
+    // Confirmar eliminación de brote con advertencia de documentos
+$('.delete-btn').on('click', function(e) {
+    e.preventDefault();
+    
+    const idbrote = $(this).data('idbrote');    
+    const url = `/brotes/eliminar/${idbrote}`;
+    
+    console.log('URL a llamar:', url);
+    
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: '⚠️ ¿Está seguro?',
+            html: `
+                <div class="text-start">
+                    <p class="mb-3">¿Desea eliminar el brote <strong>#${idbrote}</strong>?</p>                    
+                    <hr>
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>ADVERTENCIA:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Se eliminará el brote permanentemente</li>
+                            <li>Se eliminarán TODOS los documentos asociados</li>
+                            <li>Los archivos físicos serán borrados del servidor</li>
+                            <li><strong>Esta acción NO se puede deshacer</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-trash me-2"></i>Sí, eliminar todo',
+            cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+            width: '600px',
+            customClass: {
+                confirmButton: 'btn btn-danger btn-lg',
+                cancelButton: 'btn btn-secondary btn-lg'
+            },
+            buttonsStyling: false,
+            reverseButtons: true,
+            focusCancel: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Segundo nivel de confirmación (doble check)
+                Swal.fire({
+                    title: '¿Confirma la eliminación?',
+                    html: `
+                        <p>Esta es la <strong>última confirmación</strong>.</p>
+                        <p class="text-danger mb-0">
+                            <i class="fas fa-exclamation-circle me-1"></i>
+                            El brote #${idbrote} y todos sus documentos serán eliminados permanentemente.
+                        </p>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, estoy seguro',
+                    cancelButtonText: 'No, cancelar',
+                    customClass: {
+                        confirmButton: 'btn btn-danger',
+                        cancelButton: 'btn btn-secondary'
+                    },
+                    buttonsStyling: false,
+                    reverseButtons: true
+                }).then((finalResult) => {
+                    if (finalResult.isConfirmed) {
+                        // Mostrar loading
+                        Swal.fire({
+                            title: 'Eliminando...',
+                            html: `
+                                <p>Por favor espere mientras se eliminan:</p>
+                                <ul class="text-start">
+                                    <li>Registro del brote</li>
+                                    <li>Documentos asociados</li>
+                                    <li>Archivos físicos del servidor</li>
+                                </ul>
+                            `,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        
+                        // Realizar petición DELETE
+                        fetch(url, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            }
+                        })
+                        .then(response => {
+                            console.log('Status:', response.status);
+                            console.log('Content-Type:', response.headers.get('content-type'));
+                            
+                            const contentType = response.headers.get('content-type');
+                            if (contentType && contentType.includes('application/json')) {
+                                return response.json();
+                            } else {
+                                return response.text().then(text => {
+                                    console.error('Respuesta HTML:', text);
+                                    throw new Error('El servidor devolvió HTML en lugar de JSON');
+                                });
+                            }
+                        })
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            // Éxito
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Eliminado!',
+                                html: `
+                                    <p class="mb-2">El brote ha sido eliminado correctamente</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-check-circle me-1"></i>
+                                        Brote, documentos y archivos eliminados
+                                    </small>
+                                `,
+                                timer: 3000,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            }).then(() => {
+                                // Recargar la página
+                                location.reload();
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error completo:', error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error al eliminar',
+                                html: `
+                                    <p class="mb-2">${error.message || 'No se pudo eliminar el brote'}</p>
+                                    <small class="text-muted">Revisa la consola para más detalles</small>
+                                `,
+                                confirmButtonText: 'Entendido',
+                                customClass: {
+                                    confirmButton: 'btn btn-primary'
+                                },
+                                buttonsStyling: false
+                            });
+                        });
+                    }
+                });
+            }
+        });
+    } else {
+        // Sin SweetAlert2 - Confirmación nativa con advertencia detallada
+        const mensaje = `⚠️ ADVERTENCIA IMPORTANTE ⚠️\n\n` +
+                       `¿Está seguro de eliminar el brote #${idbrote}?\n\n` +
+                       `Lugar: ${lugar}\n\n` +
+                       `SE ELIMINARÁ:\n` +
+                       `- El registro del brote\n` +
+                       `- Todos los documentos asociados\n` +
+                       `- Los archivos físicos del servidor\n\n` +
+                       `⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️\n\n` +
+                       `¿Desea continuar?`;
+        
+        const confirmed = confirm(mensaje);
+        
+        if (confirmed) {
+            // Segunda confirmación
+            const segundaConfirmacion = confirm(
+                `ÚLTIMA CONFIRMACIÓN\n\n` +
+                `¿Está completamente seguro de eliminar el brote #${idbrote} y TODOS sus documentos?\n\n` +
+                `Esta es su última oportunidad para cancelar.`
+            );
+            
+            if (segundaConfirmacion) {
+                // Realizar petición DELETE
+                fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error al eliminar');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('✓ Brote eliminado correctamente\n\nSe eliminaron el brote, documentos y archivos físicos.');
+                    location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('✗ Error al eliminar el brote:\n\n' + error.message);
+                });
+            }
+        }
+    }
+});
+
+
+
+    
+});
+</script>
+
+{% endblock %}

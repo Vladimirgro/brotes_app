@@ -1,0 +1,558 @@
+{% extends "layout.html" %} {% block title %}Editar Brote{% endblock %} {% block
+content %}
+
+{% include 'brotes/navs.html' %}
+
+
+<form class="form-container" id="form_update" method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <!-- Campos del brote -->
+  <input type="hidden" name="idbrote" value="{{ brote.idbrote }}" />
+  <input type="hidden" name="origen" value="{{ origen }}" />
+
+  <h2>Editar brote</h2>
+
+  <!-- Tipo de Brote -->
+  <div class="section">
+    <div class="section-title">Tipo de Brote</div>
+    <div class="grid grid-2">
+      <div class="input-container">
+        <label for="evento">Tipo de Evento</label>
+        <input type="text" id="evento" name="evento" list="datalist_tipoevento" placeholder="Escriba un evento..." value="{{ brote.tipoevento }}" required/>
+        <datalist id="datalist_tipoevento">
+          {% for tipo in tipoeventos %}
+            <option value="{{ tipo.nombre }}"></option>
+          {% endfor %}            
+        </datalist>
+        <div id="error-evento" class="text-danger" style="display: none"></div>
+      </div>
+      <div class="input-container">
+        <label for="lugar">Lugar</label>        
+        <input type="text" id="lugar" name="lugar" value="{{ brote.lugar }}" data-flask-value="{{ brote.lugar }}" disabled />
+      </div>
+    </div>
+  </div>
+
+  <!-- Identificación de la unidad -->
+  <div class="section">
+    <div class="section-title">Identificación de la unidad</div>
+    <div class="grid grid-3">
+      <div class="input-container">
+        <label for="institucion">Institución</label>
+        <input
+          type="text"
+          id="institucion"
+          name="institucion"
+          list="datalist_institucion"
+          placeholder="Escriba una institución..."
+          autocomplete="off"
+          required
+          value="{{ brote.institucion }}"
+        />
+        <datalist id="datalist_institucion">
+          {% for inst in instituciones %}
+          <option value="{{ inst.nombre }}">{% endfor %}</option>
+        </datalist>
+
+        <div
+          id="error-institucion"
+          class="error-message text-danger mt-1"
+          style="display: none"
+        ></div>
+      </div>
+      <div class="input-container">
+        <label for="unidad">Unidad notificante</label>
+        <input
+          type="text"
+          id="unidad"
+          name="unidad"
+          value="{{ brote.unidadnotif }}"
+          required
+        />
+        <datalist id="sugerencias-unidad"></datalist>
+      </div>
+      <div class="input-container">
+        <label for="domicilio">Domicilio</label>
+        <input
+          type="text"
+          id="domicilio"
+          name="domicilio"
+          value="{{ brote.domicilio }}"
+        />
+      </div>
+      <div class="input-container">
+        <label for="localidad">Localidad</label>
+        <input
+          type="text"
+          id="localidad"
+          name="localidad"
+          value="{{ brote.localidad }}"
+        />
+        <datalist id="sugerencias-localidad"></datalist>
+      </div>
+      <div class="input-container">
+        <label for="municipio">Municipio</label>
+        <input
+          type="text"
+          id="municipio"
+          name="municipio"
+          list="datalist_municipios"
+          placeholder="Escriba un municipio..."
+          autocomplete="off"
+          value="{{ brote.municipio }}"
+          required
+        />
+        <datalist id="datalist_municipios">
+          {% for mun in municipios %}
+          <option value="{{ mun.nombre }}">{% endfor %}</option>
+        </datalist>
+
+        <div
+          id="error-municipio"
+          class="text-danger"
+          style="display: none"
+        ></div>
+      </div>
+      <div class="input-container">
+        <label for="juris">Jurisdicción</label>
+        <input
+          type="text"
+          id="juris"
+          name="juris"
+          list="datalist_jurisdicciones"
+          placeholder="Escriba una jurisdicción..."
+          autocomplete="off"
+          value="{{ brote.jurisdiccion }}"
+          required
+        />
+        <datalist id="datalist_jurisdicciones">
+          {% for j in jurisdicciones %}
+          <option value="{{ j.nombre }}">{% endfor %}</option>
+        </datalist>
+
+        <div
+          id="error-jurisdicciones"
+          class="text-danger"
+          style="display: none"
+        ></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Antecedentes -->
+  <div class="section">
+    <div class="section-title">Antecedentes</div>
+    <div class="grid grid-3">
+      <div class="input-container">
+        <label for="fechnotifica">Fecha de notificación</label>
+        <input
+          type="date"
+          id="fechnotifica"
+          name="fechnotifica"
+          value="{{ brote.fechnotifica.strftime('%Y-%m-%d') if brote.fechnotifica else '' }}"
+          required
+        />
+        <small
+          id="error-message-fechnotifica"
+          class="text-danger error-message"
+        ></small>
+      </div>
+      <div class="input-container">
+        <label for="diagsospecha" class="form-label"
+          >Diagnóstico de sospecha</label
+        >
+        <input
+          type="text"
+          id="diagsospecha"
+          name="diagsospecha"
+          list="datalist_diagsospecha"
+          placeholder="Escriba un diagnóstico..."
+          autocomplete="off"
+          value="{{ brote.diagnostico }}"
+          required
+        />
+        <datalist id="datalist_diagsospecha">
+          {% for diag in diagnosticos %}
+          <option value="{{ diag.nombre }}">{% endfor %}</option>
+        </datalist>
+
+        <div
+          id="error-diagsospecha"
+          class="text-danger"
+          style="display: none"
+        ></div>
+      </div>
+      <div class="input-container">
+        <label for="fecha_inicio">Fecha de inicio del brote</label>
+        <input
+          type="date"
+          id="fecha_inicio"
+          name="fecha_inicio"
+          value="{{ brote.fechinicio.strftime('%Y-%m-%d') if brote.fechinicio else '' }}"
+          required
+        />
+        <small
+          id="error-message-fechainicio"
+          class="text-danger error-message"
+        ></small>
+      </div>
+      <div class="input-container">
+        <label for="probables">Casos probables</label>
+        <input
+          type="number"
+          id="probables"
+          name="probables"
+          value="{{ brote.casosprob }}"
+          min="0"
+          required
+        />
+      </div>
+      <div class="input-container">
+        <label for="confirmados">Casos confirmados</label>
+        <input
+          type="number"
+          id="confirmados"
+          name="confirmados"
+          value="{{ brote.casosconf }}"
+          min="0"
+          required
+        />
+      </div>
+      <div class="input-container">
+        <label for="defunciones">Defunciones</label>
+        <input
+          type="number"
+          id="defunciones"
+          name="defunciones"
+          value="{{ brote.defunciones }}"
+          min="0"
+          required
+        />
+      </div>
+      <div class="input-container">
+        <label for="fecha_ultimo_caso">Fecha del último caso</label>
+        <input type="date" id="fecha_ultimo_caso" name="fecha_ultimo_caso"
+          value="{{ brote.fechultimocaso.strftime('%Y-%m-%d') if brote.fechultimocaso else '' }}" required/>
+        <small id="error-message-fecha_ultimo_caso" class="text-danger error-message"></small>
+      </div>
+      <div class="input-container">
+        <label for="resultado">Resultado</label>
+        <input
+          type="text"
+          id="resultado"
+          name="resultado"
+          value="{{ brote.resultado }}"
+        />
+      </div>
+      <div  class="input-container">
+        <label for="fecha_alta">Fecha del alta</label>
+        <input
+          type="date"
+          id="fecha_alta"
+          name="fecha_alta"
+          value="{{ brote.fechalta.strftime('%Y-%m-%d') if brote.fechalta else '' }}"
+        />
+        <small
+          id="error-message-fechalta"
+          class="text-danger error-message"
+        ></small>
+      </div>
+      <div  class="input-container">
+        <label for="fecha_consulta">Fecha de consulta</label>
+        <input
+          type="date"
+          id="fecha_consulta"
+          name="fecha_consulta"
+          value="{{ brote.fecha_consulta.strftime('%Y-%m-%d') if brote.fecha_consulta else '' }}"
+        />
+        <small
+          id="error-message-fecha_consulta"
+          class="text-danger error-message"
+        ></small>
+      </div>
+      
+      <div class="input-container">
+          <label for="fecha_probable_alta">Fecha probable de alta</label>
+          <input type="date" id="fecha_probable_alta" name="fecha_probable_alta"
+          value="{{ fecha_probable_alta.strftime('%Y-%m-%d') if fecha_probable_alta else '' }}">
+      </div>
+
+      <div  class="input-container" style="grid-column: 1 / -1">
+        <label for="observaciones">Observaciones</label>
+        <textarea
+          id="observaciones"
+          name="observaciones"
+          rows="3"
+          spellcheck="false"
+          data-ms-editor="true"
+        >
+{{ brote.observaciones if brote.observaciones else '' }}</textarea
+        >
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Población expuesta</div>
+    <div class="grid grid-3">
+      <div class="input-container">
+        <label for="pobmascexpuesta">Masculinos</label>
+        <input
+          type="number"
+          id="pobmascexpuesta"
+          name="pobmascexpuesta"
+          value="{{ brote.pobmascexp }}"
+          min="0"
+          required
+        />
+      </div>
+      <div class="input-container">
+        <label for="pobfemexpuesta">Femeninos</label>
+        <input
+          type="number"
+          id="pobfemexpuesta"
+          name="pobfemexpuesta"
+          value="{{ brote.pobfemexp }}"
+          min="0"
+          required
+        />
+      </div>
+      <div class="input-container">
+        <label for="total">Total</label>
+        <input
+          type="number"
+          id="total"
+          name="total"
+          value=""
+          required
+          readonly
+        />
+      </div>
+      <div class="input-container">
+        <label for="ataque">Tasa de ataque</label>
+        <input
+          type="number"
+          step="0.1"
+          id="ataque"
+          name="ataque"
+          value=""
+          required
+          readonly
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="seccion">
+    <div class="section-title">Documentos</div>
+    <div class="grid grid-3">
+      <!-- Botón para abrir modal -->
+       {% if current_user.is_authenticated and current_user.rol in ['coordinador_estatal',
+                        'jefe_departamento','super_administrador'] %}
+        <div style="display: flex; justify-content: left; align-items: center">
+          <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalDocumentos">
+            Cargar archivo
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </button>
+        </div>
+       {% endif %} 
+      <!-- Documentos adjuntados -->
+      <div id="seccionTablaDocumentos" style="grid-column: 1 / -1">
+        <h5>Documentos asociados al brote de {{ brote['diagnostico'] }}</h5>
+
+        <div class="table-container">
+          <table class="table table-sm table-bordered" id="tablaDocumentos">
+            <thead>
+              <tr>
+                <th>Archivo</th>
+                <th>Tipo de notificación</th>
+                <th>Folio notinmed</th>
+                <th>Fecha notificación</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if documentos %} {% for doc in documentos %}
+              <tr data-id="{{ doc.iddocumento }}" data-tipo="existente">
+                <td>{{ doc.nombre_archivo }}</td>
+                <td>{{ doc.tipo_notificacion }}</td>
+                <td>
+                  <input
+                    type="text"
+                    class="form-control form-control-sm folioInput"
+                    value="{{ doc.folionotinmed or '' }}"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    class="form-control form-control-sm fechaInput"
+                    value="{{ doc.fechnotinmed or '' }}"
+                  />
+                </td>
+                <td style="display: flex; width: 100%; justify-content: center; align-items: center;">                  
+                  <a href="{{ url_for('brotes_bp.descargar_documento', doc_id=doc.iddocumento) }}"
+                    class="btn btn-sm btn-outline-primary me-1 btn-descargar" 
+                    title="Descargar"
+                    data-doc-id="{{ doc.iddocumento }}"
+                    data-nombre="{{ doc.nombre_archivo }}"
+                    target="_blank">
+                    <i class="fas fa-download"></i>
+                  </a>                 
+                  <!-- Botón Eliminar -->
+                   {% if current_user.is_authenticated and current_user.rol in ['coordinador_estatal',
+                        'jefe_departamento','super_administrador'] %}
+                    <a href="javascript:void(0);"                  
+                      class="btn btn-sm btn-outline-danger btn-eliminar-doc" 
+                      title="Eliminar"
+                      data-doc-id="{{ doc.iddocumento }}"
+                      data-nombre="{{ doc.nombre_archivo }}">
+                      <i class="fas fa-trash"></i>
+                    </a>
+                  {% endif %}    
+                </td>
+              </tr>
+              {% endfor %} {% else %}
+              <tr>
+                <td colspan="5" class="text-center">
+                  No hay documentos asociados a este brote.
+                </td>
+              </tr>
+
+              {% endif %}
+            </tbody>
+            <tbody id="tbodyNuevos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botón de envío -->
+  <div class="mt-4 btn_g">
+    <!-- A: -->
+    {% if origen == 'brotes_pendientes' %}
+      <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" type="button" class="btn button_submit" style="margin-right: 50px">Regresar</a>
+    {% elif origen == 'brotes_activos' %}
+      <a href="{{ url_for('brotes_bp.brotes_activos') }}" type="button" class="btn button_submit" style="margin-right: 50px">Regresar</a>
+    {% else %}
+      <a href="{{ url_for('brotes_bp.brotes_completos') }}" type="button" class="btn button_submit" style="margin-right: 50px">Regresar</a>
+    {% endif %}
+    <button type="submit" class="btn button_submit">Guardar</button>
+  </div>
+</form>
+
+<!-- Modal para añadir documentos -->
+<div class="modal fade" id="modalDocumentos" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar documento</h5>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label>Tipo de notificación</label>
+          <select id="tipoDoc" class="form-select" required>
+            <option value="">--</option>
+            <option value="INICIAL">INICIAL</option>
+            <option value="SEGUIMIENTO">SEGUIMIENTO</option>
+            <option value="FINAL">FINAL</option>
+            <option value="NOTA">NOTA</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label for="">Archivo</label>
+          <input
+            type="file"
+            id="archivoDoc"
+            class="form-control"
+            accept=".pdf,.doc,.docx,.xlsx,.xls,.xlsm"
+            required
+          />
+        </div>
+        <div class="mb-2">
+          <label for="folio_notinmed">Folio notificación (opcional)</label>
+          <input
+            type="text"
+            id="folio_notinmed"
+            class="form-control"
+            value="{{ brote.folionotinmed or '' }}"
+          />
+        </div>
+        <div class="mb-2">
+          <label for="fecha_notifica_notin"
+            >Fecha notificación (opcional)</label
+          >
+          <input
+            type="date"
+            id="fecha_notifica_notin"
+            class="form-control"
+            value="{{ brote.fechnotinmed.strftime('%Y-%m-%d') if brote.fechnotinmed else '' }}"
+          />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="agregarDoc" class="btn btn-primary">
+          Agregar
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+{% if current_user.rol in ['consultor_externo'] %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('form_update');
+
+    // Deshabilitar todos los inputs, selects, textareas y botones submit
+    form.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => {
+        el.disabled = true;
+    });
+
+    // Opcional: alerta si intentan hacer click en el botón submit
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            Swal.fire('Acceso denegado', 'No tienes permisos para modificar este brote', 'warning');
+        });
+    }
+});
+</script>
+{% endif %}
+
+
+<script src="{{ url_for('static', filename='js/documentos.js') }}"></script>
+<script src="{{ url_for('static', filename='js/form_update.js') }}"></script>
+
+<script>
+$(document).ready(function() {
+    
+    // ===== DESCARGAR DOCUMENTO (OPCIONAL) =====
+    // Solo si quieres mostrar mensaje al descargar
+    $('.btn-descargar').on('click', function() {
+        const nombreArchivo = $(this).data('nombre');
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Descargando...',
+                text: `Descargando: ${nombreArchivo}`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+    
+      
+
+
+});
+</script>
+{% endblock %}

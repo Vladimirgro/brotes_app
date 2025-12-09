@@ -1,0 +1,363 @@
+{% extends "layout.html" %}
+
+{% block title %}Registrar Brote{% endblock %}
+
+
+{% block content %}
+
+{% include 'brotes/navs.html' %}
+
+<form class="form-container" id="broteForm" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <h2>Registro de brote</h2>
+
+    <!-- Tipo de Brote -->
+    <div class="section">
+        <div class="section-title">Tipo de Brote</div>
+        <div class="grid grid-2">
+            <div class="input-container">
+                <label for="evento">Tipo de evento</label>
+                <input type="text" id="evento" name="evento" list="datalist_tipoevento"
+                    placeholder="Selecciona un evento" required>
+                <datalist id="datalist_tipoevento">
+                    {% for tipo in tipoeventos %}
+                    <option value="{{ tipo.nombre }}">
+                        {% endfor %}
+                </datalist>
+                <div id="error-evento" class="text-danger" style="display: none;"></div>
+            </div>
+            <div class="input-container">
+                <label for="lugar">Lugar</label>
+                <input type="text" id="lugar" name="lugar" value="" required disabled>
+            </div>
+        </div>
+    </div>
+
+    <!-- Identificación de la unidad -->
+    <div class="section">
+        <div class="section-title">Identificación de la unidad</div>
+        <div class="grid grid-3">
+            <div class="input-container">
+                <label for="institucion">Institución</label>
+                <input type="text" id="institucion" name="institucion" list="datalist_institucion"
+                    placeholder="Selecciona una institución..." autocomplete="off" required>
+                <datalist id="datalist_institucion">
+                    {% for inst in instituciones %}
+                    <option value="{{ inst.nombre }}">
+                        {% endfor %}
+                </datalist>
+                <div id="error-institucion" class="error-message text-danger mt-1" style="display: none;"></div>
+            </div>
+            <div class="input-container">
+                <label for="unidad">Unidad notificante</label>
+                <input type="text" id="unidad" name="unidad" list="sugerencias-unidad" required>
+                <datalist id="sugerencias-unidad"></datalist>
+            </div>
+            <div class="input-container">
+                <label for="domicilio">Domicilio</label>
+                <input type="text" id="domicilio" name="domicilio">
+            </div>
+            <div class="input-container">
+                <label for="localidad">Localidad</label>
+                <input type="text" id="localidad" name="localidad" list="sugerencias-localidad">
+                <datalist id="sugerencias-localidad"></datalist>
+            </div>
+            <div class="input-container">
+                <label for="municipio">Municipio</label>
+                <input type="text" id="municipio" name="municipio" list="datalist_municipios" placeholder="Selecciona un municipio..."
+                    autocomplete="off" required>
+                <datalist id="datalist_municipios">
+                    {% for mun in municipios %}
+                    <option value="{{ mun.nombre }}">
+                        {% endfor %}
+                </datalist>
+                <div id="error-municipio" class="text-danger" style="display: none;"></div>
+            </div>
+            <div class="input-container">
+                <label for="juris">Jurisdicción</label>
+                <input type="text" id="juris" name="juris" list="datalist_jurisdicciones"
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               placeholder="Selecciona una jurisdicción..." autocomplete="off" required>
+                <datalist id="datalist_jurisdicciones">
+                    {% for j in jurisdicciones %}
+                    <option value="{{ j.nombre }}">
+                        {% endfor %}
+                </datalist>
+                <div id="error-jurisdicciones" class="text-danger" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Antecedentes -->
+    <div class="section">
+        <div class="section-title">Antecedentes</div>
+        <div class="grid grid-3">
+            <div class="input-container">
+                <label for="fechnotifica">Fecha de notificación</label>
+                <input type="date" id="fechnotifica" name="fechnotifica"
+                    value="{{ fechnotifica.strftime('%Y-%m-%d') if fechnotifica else '' }}" required>
+                <small id="error-message-fechnotifica" class="text-danger error-message"></small>                
+            </div>
+            <div class="input-container">
+                <label for="diagsospecha" class="form-label">Diagnóstico de sospecha</label>
+                <input type="text" id="diagsospecha" name="diagsospecha" list="datalist_diagsospecha"
+                    placeholder="Escriba un diagnóstico..." autocomplete="off" required>
+                <datalist id="datalist_diagsospecha">
+                    {% for diag in diagnosticos %}
+                    <option value="{{ diag.nombre }}" 
+                            data-iddiag="{{ diag.iddiag }}" 
+                            data-periodo="{{ diag.periodo_incubacion }}">
+                        {% endfor %}
+                </datalist>
+                <div id="error-diagsospecha" class="text-danger" style="display: none;"></div>
+            </div>
+            <div class="input-container">
+                <label for="fecha_inicio">Fecha de inicio del brote</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio"
+                    value="{{ fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '' }}" required>
+                <small id="error-message-fechainicio" class="text-danger error-message"></small>
+            </div>
+            <div class="input-container">
+                <label for="probables">Casos probables</label>
+                <input type="number" id="probables" name="probables" value="{{ casosprob }}" min="0" required>
+            </div>
+            <div class="input-container">
+                <label for="confirmados">Casos confirmados</label>
+                <input type="number" id="confirmados" name="confirmados" value="{{ casosconf }}" min="0" required>
+            </div>
+            <div class="input-container">
+                <label for="defunciones">Defunciones</label>
+                <input type="number" id="defunciones" name="defunciones" value="{{ defunciones }}" min="0" required>
+            </div>
+            <div class="input-container">
+                <label for="fecha_ultimo_caso">Fecha del último caso</label>
+                <input type="date" id="fecha_ultimo_caso" name="fecha_ultimo_caso"
+                    value="{{ fecha_ultimo_caso.strftime('%Y-%m-%d') if fecha_ultimo_caso else '' }}" required>
+                <small id="error-message-fecha_ultimo_caso" class="text-danger error-message"></small>
+            </div>
+            <div class="input-container">
+                <label for="resultado">Resultado</label>
+                <input type="text" id="resultado" name="resultado" value="{{ resultado }}">
+            </div>
+            <div class="input-container">
+                <label for="fecha_alta">Fecha del alta</label>
+                <input type="date" id="fecha_alta" name="fecha_alta"
+                    value="{{ fecha_alta.strftime('%Y-%m-%d') if fecha_alta else '' }}">
+                <small id="error-message-fechalta" class="text-danger error-message"></small>
+                
+            </div>
+            <div class="input-container">
+                <label for="fecha_consulta">Fecha de consulta</label>
+                <input type="date" id="fecha_consulta" name="fecha_consulta"
+                    value="{{ fecha_consulta.strftime('%Y-%m-%d') if fecha_consulta else '' }}">
+                <small id="error-message-fecha_consulta" class="text-danger error-message"></small>
+            </div>
+
+            
+            <input type="hidden" id="periodo_incubacion" name="periodo_incubacion" value="">
+
+            <div class="input-container">
+                <label for="fecha_probable_alta">Fecha probable de alta</label>
+                <input type="date" id="fecha_probable_alta" name="fecha_probable_alta"
+                    readonly>                
+            </div>
+            
+            <div class="input-container" style="grid-column: 1 / -1;">
+                <label for="observaciones">Observaciones</label>
+                <textarea id="observaciones" name="observaciones" rows="3"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Población expuesta</div>
+        <div class="grid grid-3">
+            <div class="input-container">
+                <label for="pobmascexpuesta">Masculinos</label>
+                <input type="number" id="pobmascexpuesta" name="pobmascexpuesta" value="{{ pobmascexp }}" min="0"
+                    required>
+            </div>
+            <div class="input-container">
+                <label for="pobfemexpuesta">Femeninos</label>
+                <input type="number" id="pobfemexpuesta" name="pobfemexpuesta" value="{{ pobfemexp }}" min="0" required>
+            </div>
+            <div class="input-container">
+                <label for="total">Total</label>
+                <input type="number" id="total" name="total" value="" required readonly>
+            </div>
+            <div class="input-container">
+                <label for="ataque">Tasa de ataque</label>
+                <input type="number" step="0.1" id="ataque" name="ataque" value="" required readonly>
+            </div>
+        </div>
+    </div>
+
+    <div class="seccion">
+        <div class="section-title">Documentos</div>
+        <div class="grid grid-3">
+
+            <!-- Botón para abrir modal -->
+            <div style="display: flex; justify-content: left; align-items: center;">
+                <button type="button" class="btn btn-secondary" data-bs-toggle="modal"
+                    data-bs-target="#modalDocumentos">
+                    Cargar archivo
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </button>
+            </div>
+
+            <!-- Documentos adjuntados -->
+            <div id="seccionTablaDocumentos" style="display: none; grid-column: 1 / -1;">
+                <h5 class="mt-4">Documentos adjuntados</h5>
+                <div class="table-container">
+                    <table class="table table-sm table-bordered" id="tablaDocumentos">
+                        <thead>
+                            <tr>
+                                <th>Archivo</th>
+                                <th>Tipo de notificación</th>
+                                <th>Folio notinmed</th>
+                                <th>Fecha notificación</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-4 btn_g">
+        <a href="{{ url_for('brotes_bp.brotes_completos') }}" type="button" class="btn button_submit" style="margin-right: 50px;">Regresar</a>
+        <button type="submit" class="btn button_submit">Guardar</button>        
+    </div>
+
+</form>
+
+
+<!-- Modal para añadir documentos -->
+<div class="modal fade" id="modalDocumentos" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar documento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label>Tipo de notificación</label>
+                    <select id="tipoDoc" class="form-select" required>
+                        <option value="">--</option>
+                        <option value="INICIAL">INICIAL</option>
+                        <option value="SEGUIMIENTO">SEGUIMIENTO</option>
+                        <option value="FINAL">FINAL</option>
+                        <option value="NOTA">NOTA</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label for="">Archivo</label>
+                    <input type="file" id="archivoDoc" class="form-control" accept=".pdf,.doc,.docx,.xlsx,.xls,.xlsm"
+                        required>
+                </div>
+                <div class="mb-2">
+                    <label for="folio_notinmed">Folio notificación (opcional)</label>
+                    <input type="text" id="folio_notinmed" class="form-control">
+                </div>
+                <div class="mb-2">
+                    <label for="fecha_notifica_notin">Fecha notificación (opcional)</label>
+                    <input type="date" id="fecha_notifica_notin" class="form-control"
+                        value="{{ fecha_notifica_notin.strftime('%Y-%m-%d') if fecha_notifica_notin else '' }}">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="agregarDoc" class="btn btn-primary">Agregar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/register.js') }}"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const inputDiag = document.getElementById("diagsospecha");
+    const datalistDiag = document.getElementById("datalist_diagsospecha");
+    const inputFechaCaso = document.getElementById("fecha_ultimo_caso");
+    const inputFechaAlta = document.getElementById("fecha_probable_alta");
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfInput ? csrfInput.value : null;
+
+    // ⚙️ Variables internas
+    let diagnosticoSeleccionado = null;
+
+    // 🧠 Cuando el usuario cambia o selecciona un diagnóstico
+    inputDiag.addEventListener("input", () => {
+        const valor = inputDiag.value.trim();
+        diagnosticoSeleccionado = null;
+
+        // Busca si el valor coincide con un <option> del datalist
+        for (const option of datalistDiag.options) {
+            if (option.value === valor) {
+                diagnosticoSeleccionado = {
+                    id: option.getAttribute("data-iddiag"),
+                    nombre: option.value,
+                    periodo: option.getAttribute("data-periodo")
+                };
+                break;
+            }
+        }
+
+        // Si ya hay fecha del último caso, intenta calcular
+        if (diagnosticoSeleccionado && inputFechaCaso.value) {
+            calcularFechaAlta();
+        }
+    });
+
+    // 📅 Cuando el usuario selecciona la fecha del último caso
+    inputFechaCaso.addEventListener("change", () => {
+        if (diagnosticoSeleccionado) {
+            calcularFechaAlta();
+        }
+    });
+
+    // 🚀 Función que consulta el endpoint Flask
+    async function calcularFechaAlta() {
+        const fechaUltimoCaso = inputFechaCaso.value;
+        if (!fechaUltimoCaso || !diagnosticoSeleccionado) return;
+
+        try {
+            const headers = { "Content-Type": "application/json" };
+            if (csrfToken) {
+                headers["X-CSRFToken"] = csrfToken;
+            }
+
+            const response = await fetch("{{ url_for('brotes_bp.calcular_fecha_alta') }}", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    diagnostico_id: diagnosticoSeleccionado.id,
+                    fecha_ultimo_caso: fechaUltimoCaso
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                inputFechaAlta.value = data.fecha_probable_alta;
+            } else {
+                inputFechaAlta.value = "";
+                Swal.fire("Error", data.message, "error");
+            }
+
+        } catch (error) {
+            console.error("Error al calcular fecha de alta:", error);
+            Swal.fire("Error", "No se pudo calcular la fecha probable de alta.", "error");
+        }
+    }
+});
+</script>
+
+{% endblock %}

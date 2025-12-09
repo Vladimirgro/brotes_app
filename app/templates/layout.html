@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}SIVEIA{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- CDNs -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles_table.css') }}">
+
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 70px;
+            --primary-color: #0e2238;
+            --secondary-color: #1a3a5f;
+            --accent-color: #ff7e5f;
+            --text-color: #333;
+            --light-color: #f8f9fa;
+            --transition-speed: 0.3s;
+            --sidebar-hover: rgba(255, 255, 255, 0.075);
+            --sidebar-active: #3b7ddd;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-color);
+            background-color: #f5f5f5;
+            /* background-color: #f5f7fa; */
+            overflow-x: hidden;
+        }
+
+        /* Layout principal */
+        .wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: var(--sidebar-collapsed);
+            min-width: var(--sidebar-collapsed);
+            height: 100vh;
+            background-color: var(--primary-color);
+            color: white;
+            position: fixed;
+            z-index: 1000;
+            transition: all var(--transition-speed) ease;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #sidebar.expand {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .sidebar-logo {
+            margin-left: 0.5rem;
+            color: white;
+            font-size: 1.15rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+
+        #sidebar.expand .sidebar-logo {
+            opacity: 1;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0;
+            overflow-y: auto;
+        }
+
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            transition: all var(--transition-speed);
+            border-left: 3px solid transparent;
+            position: relative;
+        }
+
+        .sidebar-link:hover {
+            background-color: var(--sidebar-hover);
+            border-left-color: var(--sidebar-active);
+        }
+
+        .sidebar-link i {
+            font-size: 1.2rem;
+            min-width: 24px;
+            transition: var(--transition-speed);
+        }
+
+        .sidebar-link span {
+            margin-left: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+
+        #sidebar.expand .sidebar-link span {
+            opacity: 1;
+        }
+
+        .sidebar-dropdown.show {
+            max-height: 500px;
+        }
+
+        .sidebar-dropdown .sidebar-link {
+            padding-left: 3.5rem;
+        }
+
+        /* --- Submenús flotantes cuando el sidebar está colapsado --- */
+        #sidebar:not(.expand) .sidebar-item .sidebar-dropdown {
+            position: absolute;
+            top: 0;
+            left: 70px;
+            /* Coincide con el ancho colapsado */
+            background-color: var(--primary-color);
+            padding: 0;
+            min-width: 15rem;
+            display: none;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+        }
+
+        #sidebar:not(.expand) .sidebar-item:hover .sidebar-dropdown {
+            display: block;
+            max-height: 15em;
+            width: 100%;
+            opacity: 1;
+        }
+
+
+        /* Contenido principal */
+        .main {
+            margin-left: var(--sidebar-collapsed);
+            width: calc(100% - var(--sidebar-collapsed));
+            transition: margin-left var(--transition-speed) ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar.expand~.main {
+            margin-left: var(--sidebar-width);
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        /* Navbar superior */
+        .navbar {
+            min-height: 70px;
+            margin-top: 20px;
+            margin-left: 20px;
+            margin-right: 20px;
+            background-color: f5f5f5;
+            /* background-color: #f5f7fa; */
+            border-radius: 20px;
+            /* background-color: rgba(196, 192, 192, 0.34); */
+            box-shadow: 0 0 2rem 0 rgba(33, 37, 41, 0.1);
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-form {
+            margin-left: 1rem;
+        }
+
+        .input-group-navbar {
+            display: flex;
+            align-items: center;
+        }
+
+        .input-group-navbar input {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 20px 0 0 20px;
+            border-right: none;
+            outline: none;
+            transition: var(--transition-speed);
+        }
+
+        .input-group-navbar input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .input-group-navbar button {
+            background: white;
+            border: 1px solid #ddd;
+            border-left: none;
+            border-radius: 0 20px 20px 0;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        /* User profile */
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--secondary-color);
+            /* background-color: var(--accent-color); */
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 0.75rem;
+        }
+
+        /* Dropdown menu */
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 0.5rem 0;
+            min-width: 200px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1.25rem;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--light-color);
+        }
+
+        .dropdown-item i {
+            width: 25px;
+            text-align: center;
+            margin-right: 0.75rem;
+        }
+
+        /* Contenido */
+        .content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+
+        /* input */
+        .input-container {
+            position: relative;
+            width: 100%;
+        }
+
+        input[list] {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-color: white !important;
+            color: black !important;
+        }
+
+        /* Estilo para las opciones del datalist */
+        datalist option {
+            background-color: white !important;
+            color: black !important;
+        }
+
+
+        .input-container input:focus,
+        .input-container select:focus {
+            border-color: rgba(41, 59, 95, 0.9);
+            box-shadow: 0 0 8px 2px rgba(41, 59, 95, 0.9);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-container input,
+        .input-container select {
+            width: 100%;
+            padding: 5px 10px;
+            font-size: 14px;
+            border: 1px solid #000;
+            border-radius: 10px;
+            outline: none;
+            height: 45px;
+            background: white;
+        }
+
+        /* Asegura que el label no se superponga */
+        .input-container label {
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            font-size: 12px;
+            color: black;
+            background: white;
+            /* padding: 0 0px; */
+            z-index: 100;
+        }
+
+        input:disabled {
+
+            cursor: not-allowed;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .search-form input {
+                display: none;
+            }
+
+            #sidebar {
+                transform: translateX(-100%);
+                width: var(--sidebar-width);
+            }
+
+            #sidebar.expand {
+                transform: translateX(0);
+            }
+
+            .main {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <button class="toggle-btn" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="lni lni-dashboard-square-1"></i>
+                </button>
+                <div class="sidebar-logo">
+                    <a href="#">DUEyD</a>
+                </div>
+            </div>
+
+            <ul class="sidebar-nav">
+                <li class="sidebar-item">
+                    {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol
+                    == 'coordinador_estatal' or current_user.rol == 'super_administrador') %}
+                    <a href="{{ url_for('brotes_bp.dashboard') }}" class="sidebar-link" aria-label="dashboard">
+                        <i class="lni lni-layout-9"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    {% endif %}
+                </li>
+
+                <li class="sidebar-item">
+                    <a href="#" class="sidebar-link has-dropdown collapsed" data-bs-toggle="collapse"
+                        data-bs-target="#register" aria-expanded="false" aria-controls="register"
+                        aria-label="Registro de brotes">
+                        <i class="lni lni-pen-to-square"></i>
+                        <span>Brotes</span>
+                    </a>
+                    <ul id="register" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">
+                        {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or
+                        current_user.rol == 'coordinador_estatal' or current_user.rol == 'super_administrador') %}
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.formulario') }}" class="sidebar-link">Registrar</a>
+                            </li>
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.brotes_completos') }}" class="sidebar-link">Listado nominal</a>
+                            </li>
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.brotes_pendientes') }}" class="sidebar-link">Brotes pendiente de alta</a>
+                            </li>
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.brotes_activos') }}" class="sidebar-link">Brotes activos</a>
+                            </li>
+                        {% endif %}
+
+                        <!-- {% if current_user.is_authenticated and (current_user.rol == 'consultor_externo') %}                            
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.brotes_completos') }}" class="sidebar-link">Listado nominal</a>
+                            </li>                            
+                        {% endif %} -->
+                    </ul>
+                </li>
+
+                <li class="sidebar-item">
+                    {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or
+                    current_user.rol == 'super_administrador') %}
+                    <a href="#" class="sidebar-link collapsed" data-bs-toggle="collapse" data-bs-target="#reportes"
+                        aria-expanded="false" aria-controls="reportes" aria-label="Reportes">
+                        <i class="lni lni-bar-chart-4"></i>
+                        <span>Reportes</span>
+                    </a>
+                    <ul id="reportes" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">                                                                    
+                    </ul>
+                    {% endif %}
+                </li>
+
+
+                {% if current_user.is_authenticated and (current_user.rol == 'super_administrador') %}
+                <li class="sidebar-item">
+                    <a href="#" class="sidebar-link has-dropdown collapsed" data-bs-toggle="collapse"
+                        data-bs-target="#usuario" aria-expanded="false" aria-controls="usuario"
+                        aria-label="Registro de brotes">
+                        <i class="lni lni-pen-to-square"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <ul id="usuario" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">
+
+                        <li class="sidebar-item">
+                            <a href="{{ url_for('auth_bp.registrar_usuario') }}" class="sidebar-link">Registrar
+                                usuarios</a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="{{ url_for('auth_bp.lista_usuarios') }}" class="sidebar-link">Lista de usuarios</a>
+                        </li>
+
+                    </ul>
+                </li>
+                {% endif %}
+
+                <li class="sidebar-item">
+                    {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol
+                    == 'coordinador_estatal' or current_user.rol == 'super_administrador') %}
+                        <a href="#" class="sidebar-link collapsed" data-bs-toggle="collapse" data-bs-target="#settings"
+                            aria-expanded="false" aria-controls="settings" aria-label="Configuraciones del sistema">
+                            <i class="lni lni-gear-1"></i>
+                            <span>Diagnósticos</span>
+                        </a>
+                        <ul id="settings" class="sidebar-dropdown collapse" data-bs-parent="#sidebar">
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.crear_diagnostico') }}" class="sidebar-link">Registrar</a>
+                            </li>
+                            <li class="sidebar-item">
+                                <a href="{{ url_for('brotes_bp.lista_diagnosticos') }}" class="sidebar-link">lista de diagnósticos</a>
+                            </li>
+                        </ul>
+                    {% endif %}
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth_bp.logout') }}" class="sidebar-link" aria-label="Cerrar sesión">
+                    <i class="lni lni-exit"></i>
+                    <span>Cerrar sesión</span>
+                </a>
+                {% endif %}
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <div class="main">
+            <nav class="navbar">
+                <div class="nav-left">
+                    <div class="nav-item" id="mobileMenuToggle">
+                        <i class="fas fa-bars"></i>
+                    </div>                    
+                    <!-- <form action="#" class="search-form">
+                        <div class="input-group input-group-navbar">
+                            <input type="text" class="form-control" placeholder="Buscar..." aria-label="Buscar">
+                            <button class="btn" type="submit">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form> -->
+                </div>
+                
+                
+                <div class="dropdown">
+                    {% if current_user.is_authenticated %}
+                    <a href="#" class="user-profile dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown"
+                        aria-expanded="false" aria-label="Cuenta de usuario">
+                        <span class="d-none d-md-inline me-2" style="color: #34436d;">
+                            {{ current_user.nombre }} ({{ current_user.rol }})
+                        </span>
+                        <div class="user-avatar">
+                            {{ current_user.nombre[0] }}{{ current_user.nombre.split(' ')[1][0] if
+                            current_user.nombre.split(' ')|length > 1 else current_user.nombre[1] }}
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configuración</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth_bp.logout') }}"><i
+                                    class="fas fa-sign-out-alt me-2"></i> Cerrar sesión</a></li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </nav>
+
+            <main class="content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/sweetalert-utils.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="{{ url_for('static', filename='js/validar_fechas.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/funciones_calculo.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle'); // Botón principal (desktop)
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle'); // Botón barras (mobile)
+
+
+            // Toggle sidebar en desktop
+            sidebarToggle.addEventListener('click', function () {
+                sidebar.classList.toggle('expand');
+                localStorage.setItem('sidebarExpanded', sidebar.classList.contains('expand'));
+            });
+
+            // Toggle sidebar en móvil
+            mobileMenuToggle.addEventListener('click', function () {
+                sidebar.classList.toggle('expand');
+            });
+
+            // Cargar estado del sidebar desde localStorage
+            if (localStorage.getItem('sidebarExpanded') === 'true') {
+                sidebar.classList.add('expand');
+            }
+
+            // Cerrar sidebar al hacer clic en el contenido en móvil
+            document.querySelector('.content').addEventListener('click', function () {
+                if (window.innerWidth <= 992 && sidebar.classList.contains('expand')) {
+                    sidebar.classList.remove('expand');
+                }
+            });
+
+            // Manejar cambios de tamaño de pantalla
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 992) {
+                    sidebar.classList.remove('expand');
+                }
+            });
+        });
+    </script>
+
+    <script>
+        // Mostrar mensajes flash
+        {% with messages = get_flashed_messages(with_categories = true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        {% if category not in ['login_success'] or current_user.is_authenticated %}
+        Swal.fire({
+            icon: '{{ category }}',
+            text: '{{ message }}',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>
