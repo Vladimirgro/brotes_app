@@ -366,6 +366,7 @@ def registrar_con_documentos():
 #End point para listar brotes
 @brotes_bp.route('/lista', methods=['GET'])
 @login_required
+@rol_requerido('super_administrador', 'jefe_departamento', 'coordinador_estatal')
 def lista_brotes():
     from datetime import datetime, timedelta
 
@@ -852,7 +853,7 @@ def get_origen_texto(origen):
 
 @brotes_bp.route('/eliminar/<int:idbrote>', methods=['DELETE'])
 @login_required
-@rol_requerido('super_administrador','jefe_departamento','coordinador_estatal')
+@rol_requerido('super_administrador', 'coordinador_estatal')
 def eliminar_brote(idbrote):
     logger = current_app.logger
     try:
@@ -954,7 +955,7 @@ def descargar_documento(doc_id):
 # Ruta para eliminar documento
 @brotes_bp.route('/documento/eliminar/<int:doc_id>', methods=['DELETE'])
 @login_required
-@rol_requerido('super_administrador', 'jefe_departamento')
+@rol_requerido('super_administrador', 'coordinador_estatal')
 @csrf.exempt
 def eliminar_documento(doc_id):
     logger = current_app.logger

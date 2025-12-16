@@ -10,10 +10,12 @@ content %}
   <input type="hidden" name="idbrote" value="{{ brote.idbrote }}" />
   <input type="hidden" name="origen" value="{{ origen }}" />
 
+  <input type="int" value="{{ brote.idbrote }}" onlyread>
   <h2>Editar brote</h2>
 
   <!-- Tipo de Brote -->
   <div class="section">
+    
     <div class="section-title">Tipo de Brote</div>
     <div class="grid grid-2">
       <div class="input-container">
@@ -399,7 +401,7 @@ content %}
                     target="_blank">
                     <i class="fas fa-download"></i>
                   </a>                 
-                  <!-- Botón Eliminar -->
+                  <!-- Botón Eliminar -->                   
                    {% if current_user.is_authenticated and current_user.rol in ['coordinador_estatal',
                         'jefe_departamento','super_administrador'] %}
                     <a href="javascript:void(0);"                  

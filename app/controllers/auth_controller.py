@@ -74,8 +74,8 @@ def logout():
 
 #Endpoint para registrar usuarios 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
-#@login_required
-#@rol_requerido('super_administrador')
+@login_required
+@rol_requerido('super_administrador')
 def registrar_usuario():
     if request.method == 'POST':
         nombre = request.form.get('nombre', '').strip()

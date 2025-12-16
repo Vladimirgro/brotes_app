@@ -144,7 +144,7 @@
       </td>
       <td>
         <div class="btn-group">
-          {% if current_user.is_authenticated and current_user.rol in ['super_administrador', 'jefe_departamento'] %}
+          {% if current_user.is_authenticated and current_user.rol in ['super_administrador', 'coordinador_estatal'] %}
           <!-- Botón editar con origen dinámico -->
           <a href="{{ url_for('brotes_bp.editar_brote', idbrote=brote.idbrote, origen=page_origin) }}"
             class="btn btn-sm btn-outline-dark" title="Editar">

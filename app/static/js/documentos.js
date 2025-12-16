@@ -179,7 +179,8 @@ document.addEventListener('click', (e) => {
             fetch(`/brotes/documento/eliminar/${docId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest' 
                 }
             })
             .then(response => {
@@ -191,6 +192,15 @@ document.addEventListener('click', (e) => {
             })
             .then(result => {
                 console.log('Respuesta:', result);
+
+                // Si la respuesta NO es OK o el backend indicó success: false
+                if (!result.ok || !result.data || result.data.success === false) {
+                    const msg = (result.data && (result.data.mensaje || result.data.error)) 
+                                || `Error al eliminar el documento (código ${result.status}).`;
+                    alertaSwal(msg, 'error');
+                    return; // No seguimos con la parte de éxito
+                }
+    
                 
                 if (result.status === 200 && result.data.success) {
                     // Eliminar la fila del DOM

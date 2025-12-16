@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import redirect, url_for, flash, request, jsonify
+from flask import redirect, url_for, request, jsonify
 
 from flask_login import current_user
 
