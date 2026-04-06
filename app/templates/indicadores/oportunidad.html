@@ -1,0 +1,291 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <!-- 🔷 Encabezado -->
+    <div class="row mb-3">                    
+        <h3 class="fw-bold">{{ encabezado }}</h3>
+        <p id="periodoTexto" class="text-muted"></p>        
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <!-- 🔷 Filtros -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form id="filtroFechas" class="row g-3 align-items-end">
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Fecha inicio</label>
+                            <input type="date"
+                                name="fecha_inicio"
+                                class="form-control"
+                                value="{{ fecha_inicio }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Fecha final</label>
+                            <input type="date"
+                                name="fecha_fin"
+                                class="form-control"
+                                value="{{ fecha_fin }}">
+                        </div>
+
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                Evaluar
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="resultadosContainer" class="row" style="display:none;"></div>
+
+    <!-- 🔷 Tabla de resultados -->
+     <!-- <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">     
+                    <div class="table-responsive">
+                        <table id="tablaOportunidad"
+                               class="table table-bordered table-striped table-hover"
+                               style="font-size: 0.9rem;">
+        
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th>Institución</th>
+                                    <th>Brotes oportunos</th>
+                                    <th>Total brotes</th>
+                                    <th>% Oportunidad</th>
+                                </tr>
+                            </thead>
+        
+                            <tbody id="tbodyOportunidad">
+
+                            </tbody>
+        
+                        </table>
+                    </div>     
+                </div>
+            </div>        
+        </div>
+     </div> -->
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+document.getElementById("filtroFechas").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const fechaInicio = document.querySelector("input[name='fecha_inicio']").value;
+    const fechaFin = document.querySelector("input[name='fecha_fin']").value;
+
+    fetch(`{{ url_for('brotes_bp.api_indicador_oportunidad') }}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`)
+        .then(response => response.json())
+        .then(data => {
+
+            const tbody = document.getElementById("tbodyOportunidad");
+            const periodoTexto = document.getElementById("periodoTexto");
+
+            tbody.innerHTML = "";
+
+            periodoTexto.innerHTML = `
+                Periodo evaluado:
+                <strong>${data.fecha_inicio}</strong>
+                al
+                <strong>${data.fecha_fin}</strong>
+            `;
+
+            data.data.forEach(row => {
+
+                let badgeClass = "bg-danger";
+
+                if (row.porcentaje_oportunidad >= 90) {
+                    badgeClass = "bg-success";
+                } else if (row.porcentaje_oportunidad >= 70) {
+                    badgeClass = "bg-warning text-dark";
+                }
+
+                const fila = `
+                    <tr>
+                        <td>${row.institucion}</td>
+                        <td class="text-center">${row.brotes_oportunos}</td>
+                        <td class="text-center">${row.total_brotes}</td>
+                        <td class="text-center fw-bold">
+                            <span class="badge ${badgeClass}">
+                                ${row.porcentaje_oportunidad} %
+                            </span>
+                        </td>
+                    </tr>
+                `;
+
+                tbody.innerHTML += fila;
+            });
+
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+});
+</script>
+
+
+<script>
+function generarTabla(titulo, bloque) {
+
+    const data = bloque.detalle;
+    const totales = bloque.totales;
+
+    let html = `
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+
+                    <h5 class="mb-3">${titulo}</h5>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th>Institución</th>
+                                    <th>Oportunos</th>
+                                    <th>Total</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+
+    if (data.length === 0) {
+
+        html += `
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No hay registros
+                </td>
+            </tr>
+        `;
+
+    } else {
+
+        data.forEach(row => {
+
+            let porcentaje = 0;
+
+            if (row.total_brotes > 0) {
+                porcentaje = ((row.brotes_oportunos / row.total_brotes) * 100).toFixed(2);
+            }
+
+            // 🔹 Semáforo por fila
+            let badgeClass = "bg-danger";
+
+            if (porcentaje >= 90) {
+                badgeClass = "bg-success";
+            } else if (porcentaje >= 70) {
+                badgeClass = "bg-warning text-dark";
+            }
+
+            html += `
+                <tr>
+                    <td>${row.institucion}</td>
+                    <td class="text-center">${row.brotes_oportunos}</td>
+                    <td class="text-center">${row.total_brotes}</td>
+                    <td class="text-center">
+                        <span class="badge ${badgeClass}">
+                            ${porcentaje} %
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // 🔷 Fila total con su propio semáforo
+        let badgeTotal = "bg-danger";
+
+        if (totales.porcentaje >= 90) {
+            badgeTotal = "bg-success";
+        } else if (totales.porcentaje >= 70) {
+            badgeTotal = "bg-warning text-dark";
+        }
+
+        html += `
+            <tr class="fw-bold text-center">
+                <td>Total</td>
+                <td>${totales.total_oportunos}</td>
+                <td>${totales.total_brotes}</td>
+                <td>
+                    <span class="badge ${badgeTotal}">
+                        ${totales.porcentaje} %
+                    </span>
+                </td>
+            </tr>
+        `;
+    }
+
+    html += `
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    `;
+
+    return html;
+}
+</script>
+
+
+<script>
+document.getElementById("filtroFechas").addEventListener("submit", function(e) {
+
+    e.preventDefault();
+
+    const fechaInicio = document.querySelector("input[name='fecha_inicio']").value;
+    const fechaFin = document.querySelector("input[name='fecha_fin']").value;
+
+    fetch(`{{ url_for('brotes_bp.api_indicador_oportunidad') }}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`)
+        .then(response => response.json())
+        .then(data => {
+
+            const container = document.getElementById("resultadosContainer");
+
+            container.innerHTML = `
+                <p class="text-muted">
+                    Periodo evaluado:
+                    <strong>${data.fecha_inicio}</strong>
+                    al
+                    <strong>${data.fecha_fin}</strong>
+                </p>
+            `;
+
+            container.innerHTML += generarTabla(
+                "Indicador por fecha de inicio del brote",
+                data.por_inicio
+            );
+
+            container.innerHTML += generarTabla(
+                "Indicador por fecha de consulta",
+                data.por_consulta
+            );
+
+            container.innerHTML += generarTabla(
+                "Indicador por fecha de notificación",
+                data.por_notificacion
+            );
+
+            container.style.display = "block";
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+
+});
+</script>
+
+{% endblock %}

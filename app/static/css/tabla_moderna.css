@@ -1,0 +1,330 @@
+/* Variables de tema oscuro glassmorphism */
+:root {
+    --bg: #0f1724;
+    --card: rgba(255,255,255,0.04);
+    --glass: rgba(255,255,255,0.06);
+    --accent1: linear-gradient(135deg,#7c3aed 0%, #06b6d4 100%);
+    --muted: rgba(255,255,255,0.6);
+    --glass-border: rgba(255,255,255,0.08);
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --radius: 14px;
+}
+
+/* Filtro de fecha - glassmorphism */
+.date-filter-container {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 6px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    backdrop-filter: blur(6px) saturate(120%);
+}
+
+.date-filter-container .form-label {
+    font-weight: 600;
+    color: #eaf2ff;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.date-filter-container .form-select-sm,
+.date-filter-container .form-control-sm {
+    font-size: 0.875rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 0.5rem 0.75rem;
+    background: rgba(255,255,255,0.02);
+    color: #dbeefe;
+    min-width: 120px;
+}
+
+.date-filter-container .form-select-sm:focus,
+.date-filter-container .form-control-sm:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    background: rgba(255,255,255,0.04);
+    outline: none;
+}
+
+.date-filter-container .btn-sm {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.22s ease;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.date-filter-container .btn-primary {
+    background: var(--accent1);
+    border: none;
+    color: white;
+}
+
+.date-filter-container .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+}
+
+.date-filter-container .btn-outline-secondary {
+    background: rgba(255,255,255,0.02);
+    color: var(--muted);
+}
+
+.date-filter-container .btn-outline-secondary:hover {
+    background: rgba(255,255,255,0.06);
+    color: white;
+}
+
+#searchBox {
+    min-width: 200px;
+    background: rgba(255,255,255,0.02);
+    color: #dbeefe;
+}
+
+#searchBox::placeholder {
+    color: var(--muted);
+}
+
+#pageLength {
+    min-width: 80px;
+}
+
+/* Tabla glassmorphism */
+.table-container {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: 0 6px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    backdrop-filter: blur(6px) saturate(120%);
+    margin-bottom: 2rem;
+}
+
+#tablaBrotes {
+    width: 100% !important;
+    border-collapse: collapse;
+    font-size: 14px;
+    color: #dbeefe;
+}
+
+#tablaBrotes thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    text-align: left;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    backdrop-filter: blur(3px);
+    font-weight: 600;
+    font-size: 13px;
+    color: #eaf2ff;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+    user-select: none;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#tablaBrotes tbody tr {
+    transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    position: relative;
+}
+
+#tablaBrotes tbody tr:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(2,6,23,0.6);
+    background: linear-gradient(90deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+}
+
+#tablaBrotes tbody td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    color: #dbeefe;
+}
+
+#tablaBrotes tbody td:first-child {
+    font-weight: 600;
+    color: var(--muted);
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+/* Badges glassmorphism */
+.badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.06);
+}
+
+.badge.bg-success {
+    background: linear-gradient(90deg, #c7f9e6, #a6f3d1);
+    color: #052017;
+}
+
+.badge.bg-warning {
+    background: linear-gradient(90deg, #ffe8a8, #ffd28f);
+    color: #3a2a00;
+}
+
+.badge.bg-secondary {
+    background: linear-gradient(90deg, #e5e7eb, #d1d5db);
+    color: #1f2937;
+}
+
+.badge.bg-info {
+    background: linear-gradient(90deg, #bfdbfe, #93c5fd);
+    color: #1e3a8a;
+}
+
+/* Botones de acción glassmorphism */
+.btn-group {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-group .btn {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    background: rgba(255,255,255,0.02);
+    color: var(--muted);
+    font-size: 13px;
+    transition: transform .12s ease, background .12s, color .12s;
+    font-weight: 500;
+}
+
+.btn-group .btn:active {
+    transform: scale(.98);
+}
+
+.btn-group .btn-outline-dark:hover {
+    background: var(--accent1);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.btn-group .btn-outline-danger:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Fila seleccionada */
+#tablaBrotes tbody tr.selected {
+    outline: 2px solid rgba(99,102,241,0.22);
+    transform: translateY(-6px);
+    background: linear-gradient(90deg, rgba(99,102,241,0.04), rgba(6,182,212,0.02));
+}
+
+/* Paginación glassmorphism */
+.dataTables_wrapper .dataTables_paginate {
+    float: right;
+    margin-top: 1.5rem;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.6rem 1rem;
+    margin: 0 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    color: #7c3aed !important;
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: all 0.22s ease;
+    min-width: 42px;
+    text-align: center;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--accent1);
+    color: white !important;
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--accent1) !important;
+    color: white !important;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+    transform: scale(1.05);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: rgba(255,255,255,0.01) !important;
+    color: var(--muted) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Información de registros */
+.dataTables_wrapper .dataTables_info {
+    float: left;
+    margin-top: 1.5rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+    font-weight: 600;
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.02);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .date-filter-container .row {
+        flex-wrap: wrap;
+    }
+
+    .date-filter-container .col-auto.ms-auto {
+        margin-left: 0 !important;
+        margin-top: 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .date-filter-container {
+        padding: 0.5rem;
+    }
+
+    .date-filter-container .form-select-sm,
+    .date-filter-container .form-control-sm {
+        min-width: auto;
+        width: 100%;
+    }
+
+    #searchBox {
+        min-width: 150px;
+    }
+
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        float: none;
+        text-align: center;
+    }
+}

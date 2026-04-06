@@ -1,0 +1,174 @@
+.dashboard{
+display:flex;
+flex-direction:column;
+gap:25px;
+}
+
+
+/* Estilos tabla dashboard */
+.dashboard table {
+    font-size: 0.85rem;
+}
+
+.dashboard th {
+    font-size: 0.85rem;
+}
+
+.dashboard td {
+    font-size: 0.85rem;
+}
+
+/* filtros */
+
+.filters{
+display:flex;
+gap:20px;
+flex-wrap:wrap;
+}
+
+.filter-group{
+display:flex;
+width:300px;
+align-items: center;
+}
+
+.filter-group label{
+    white-space: nowrap;
+    margin-right: 10px;
+}
+
+.filter-group select{
+    width: 150px;
+}
+
+/* KPI */
+
+.kpi-section{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:20px;
+}
+
+.kpi-card{
+min-height:50px;
+background:white;
+padding:10px 15px;
+border-radius:10px;
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+text-align:center;
+}
+
+.kpi-blue{
+border-right:.5cm solid #4e73df;
+}
+
+.kpi-green{
+border-right:.5cm solid #1cc88a;
+}
+
+.kpi-orange{
+border-right:.5cm solid #f6c23e;
+}
+
+.kpi-red{
+border-right:.5cm solid #e74a3b;
+}
+
+.kpi-number{
+font-size:28px;
+font-weight:bold;
+}
+
+
+/* gráficos */
+
+.charts-grid{
+display:grid;
+grid-template-columns:1fr 2fr;
+gap:24px;
+}
+
+.chart-full{
+grid-column:1 / -1;
+}
+
+.chart-semanas{
+height:350px !important;
+}
+
+/* tablas */
+
+.tables-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:24px;
+}
+
+
+/* cards */
+
+.card{
+background:white;
+border-radius:10px;
+box-shadow:0 2px 10px rgba(0,0,0,0.08);
+padding:20px;
+display:flex;
+flex-direction:column;
+}
+
+
+.chart-filter{
+display:grid;
+grid-template-columns: 200px 400px;
+align-items:center;
+gap:5px;
+}
+
+/* gráficos */
+
+.chart-body{
+position:relative;
+height:450px;
+}
+
+.chart-body canvas{
+width:100% !important;
+height:100% !important;
+}
+
+#graficoMeses, #graficoTipos{
+width:100%;
+margin-top:10px;
+aspect-ratio: 16 / 7;
+max-height:90%;
+}
+
+
+#graficoSemanas{
+width:80%;
+margin-top:10px;
+aspect-ratio: 16 / 7;
+max-height:280px;
+}
+
+
+/* responsive */
+@media (max-width:900px){
+
+.chart-filter{
+grid-template-columns:1fr;    
+}
+
+.charts-grid{
+grid-template-columns:1fr;
+}
+
+.tables-grid{
+grid-template-columns:1fr;
+}
+
+}

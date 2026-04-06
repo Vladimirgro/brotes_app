@@ -1,0 +1,1061 @@
+{% extends "layout.html" %}
+
+{% block title %}Estadísticas de Brotes{% endblock %}
+
+{% block content %}
+
+<div class="dashboard">
+
+    <h2 class="dashboard-title">Estadísticas de Brotes</h2>
+
+    <!-- ================= FILTROS ================= -->
+
+    <section class="filters">
+
+        <div class="filter-group">
+            <label for="institucion">Institución</label>
+
+            <select name="institucion" id="institucion" class="form-select">
+                <option value="" {% if institucion_seleccionada is none %}selected{% endif %}>
+                    Todas
+                </option>
+
+                {% for inst in instituciones %}
+                <option value="{{ inst.idinstitucion }}"
+                    {% if institucion_seleccionada == inst.idinstitucion %}selected{% endif %}>
+                    {{ inst.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+
+        <div class="filter-group">
+
+            <label for="anioSelect">
+                <i class="fas fa-calendar"></i> Año
+            </label>
+
+            <select name="anio" id="anioSelect" class="form-select">
+
+                {% for a in anios %}
+                <option value="{{ a }}" {% if a == anio_seleccionado %}selected{% endif %}>
+                    {{ a }}
+                </option>
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= KPI ================= -->
+
+    <section class="kpi-section">
+
+        <article class="kpi-card kpi-blue">
+            <h4>Total registros</h4>
+            <span class="kpi-number" id="totalBrotes">
+                {{ totales.total if totales else 0 }}
+            </span>
+        </article>
+
+        <article class="kpi-card kpi-green">
+            <h4>Brotes activos</h4>
+            <span class="kpi-number" id="totalActivos">
+                {{ totales.activos if totales else 0 }}
+            </span>
+        </article>
+
+        <article class="kpi-card kpi-orange">
+            <h4>Brotes alta</h4>
+            <span class="kpi-number" id="totalAlta">
+                {{ totales.alta if totales else 0 }}
+            </span>
+        </article>
+
+        <article class="kpi-card kpi-red">
+            <h4>Pendiente alta</h4>
+            <span class="kpi-number" id="totalPendiente">
+                {{ totales.pendiente_alta if totales else 0 }}
+            </span>
+        </article>
+
+    </section>
+
+
+    <!-- ================= GRÁFICOS ================= -->
+
+    <section class="charts-grid">
+
+        <article class="card chart-card">
+
+            <header class="card-header">
+                <h5>Distribución por tipo de brote</h5>
+            </header>
+
+            <div class="chart-body">
+                <canvas id="graficoTipos"></canvas>
+            </div>
+
+        </article>
+
+
+        <article class="card chart-card">
+
+            <header class="card-header">
+                <h5>Brotes por mes</h5>
+            </header>
+
+            <div class="chart-body">
+                <canvas id="graficoMeses"></canvas>
+            </div>
+
+        </article>
+
+
+        <article class="card chart-card chart-full">
+
+            <header class="card-header">
+
+                <h5>Brotes por semana</h5>
+
+                <div class="chart-filter">
+
+                    <label for="selectDiagnostico">Filtrar diagnóstico</label>
+
+                    <select name="diagnostico"
+                            id="selectDiagnostico"
+                            class="form-select">
+
+                        <option value="">Todos</option>
+
+                        {% for d in diagnosticos %}
+                        <option value="{{ d.iddiag }}">
+                            {{ d.nombre }}
+                        </option>
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+            </header>
+
+            <div class="chart-body chart-semanas">
+                <canvas id="graficoSemanas"></canvas>
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- ================= TABLAS ================= -->
+
+    <section class="tables-grid">
+
+        <article class="card table-card">
+            <h5><strong>Resumen por institución y estatus</strong></h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Institución</th>
+                            <th class="text-center">Activos</th>
+                            <th class="text-center">Pendiente alta</th>
+                            <th class="text-center">Alta</th>
+                            <th class="text-center">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaResumenEstatus">
+                        {% for fila in resumen %}
+                        <tr>
+                            <td>{{ fila.institucion }}</td>
+                            <td class="text-center">{{ fila.activos }}</td>
+                            <td class="text-center">{{ fila.pendiente_alta }}</td>
+                            <td class="text-center">{{ fila.alta }}</td>
+                            <td class="fw-bold text-center">{{ fila.total }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No hay datos disponibles</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+
+        <article class="card table-card">
+
+            <h5><strong>Resumen por institución y tipo de evento</strong></h5>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" id="tabla_eventos">
+                    <thead class="table-light" id="theadEventos">
+                        <tr>
+                            <th>Institución</th>
+                            <!-- Obtener todos los tipos de eventos únicos desde los datos pivotados -->
+                            {% set tipos_eventos = [] %}
+                            {% for fila in resumen_eventos %}
+                                {% for key in fila.keys() %}
+                                    {% if key not in ["idinstitucion", "institucion", "total"] and key not in tipos_eventos %}
+                                        {{ tipos_eventos.append(key) or "" }}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            
+                            {% for tipo in tipos_eventos|sort %}
+                            <th class="text-center">{{ tipo }}</th>
+                            {% endfor %}
+                            <th class="text-center">Total</th> 
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyEventos">
+                        {% for fila in resumen_eventos %}
+                        <tr>
+                            <td>{{ fila.institucion }}</td>
+                            {% for tipo in tipos_eventos|sort %}
+                                {% set valor = fila.get(tipo, 0) %}
+                                <td class="text-center">{{ valor if valor > 0 else '0' }}</td>
+                            {% endfor %}
+                            <td class="text-center"><strong>{{ fila.total }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <section class="tables-grid">
+
+        <article class="card table-card">
+            <h5><strong>Resumen por jurisdicción</strong></h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Jurisdicción</th>
+                                <th class="text-center">Total de brotes</th>
+                                <th class="text-center">Casos probables</th>
+                                <th class="text-center">Brotes activos</th>
+                                <th class="text-center">Casos probables activos</th>
+                                <th class="text-center">Brotes alta</th>
+                                <th class="text-center">Casos Probables alta</th>
+                                <th class="text-center">Brotes pendiente alta</th>
+                                <th class="text-center">Casos probables pendiente alta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaJurisdicciones"></tbody>
+                </table>
+            </div>
+            <div class="text-center mt-2">
+                <button id="toggleJurisdicciones" class="btn btn-sm btn-outline-primary">
+                    Ver todos
+                </button>
+            </div>
+        </article>
+
+
+        <article class="card table-card">
+
+            <h5><strong>Resumen por diagnóstico</strong></h5>
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Diagnóstico</th>
+                            <th class="text-center">Total de brotes</th>
+                            <th class="text-center">Casos probables</th>
+                            <th class="text-center">Brotes activos</th>
+                            <th class="text-center">Casos probables activos</th>
+                            <th class="text-center">Brotes alta</th>
+                            <th class="text-center">Casos Probables alta</th>
+                            <th class="text-center">Brotes pendiente alta</th>
+                            <th class="text-center">Casos probables pendiente alta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaDiagnosticos"></tbody>
+                </table>              
+                
+            </div>
+
+            <div class="text-center mt-2">
+                <button id="toggleDiagnosticos" class="btn btn-sm btn-outline-primary">
+                    Ver todos
+                </button>
+            </div>
+
+        </article>
+
+    </section>
+
+</div>
+
+                
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<script>
+
+    const institucionSelect = document.querySelector('[name="institucion"]');
+    const anioSelect = document.querySelector('[name="anio"]');
+    const diagnosticoSelect = document.getElementById("selectDiagnostico");
+
+    //Variables para hacer tablas collapsed
+    let mostrarTodosDiagnosticos = false;
+    const limiteDiagnosticos = 5;
+    let datosDiagnosticosActual = [];
+
+    let mostrarTodasJurisdicciones = false;
+    const limiteJurisdicciones = 5;
+    let datosJurisdiccionesActual = [];
+        
+    let chartTipos = null;
+    let chartMeses = null;
+    let chartSemanas = null;
+
+    function actualizarDashboard() {
+        const institucion = institucionSelect.value || "";
+        const anio = anioSelect.value || "";        
+
+        fetch(`/brotes/dashboard/data?institucion=${institucion}&anio=${anio}`)
+            .then(res => res.json())
+            .then(data => {
+                 actualizarCardTotales(data.totales);
+
+                actualizarGraficoTipos(data.datos.tipos);
+                actualizarGraficoMeses(data.datos.por_mes);
+                
+                actualizarSelectDiagnosticos(data.diagnosticos);
+                actualizarGraficoSemanasDiagnostico();
+                
+                actualizarTablaEstatus(data.resumen);
+                actualizarTablaEventos(data.resumen_eventos, data.tipos_eventos);
+                
+                actualizarTablaDiagnosticos(data.resumen_diagnosticos);
+                actualizarTablaJurisdiccion(data.resumen_jurisdicciones);                                
+                
+            })
+            .catch(err => console.error(err));
+    }
+
+    
+    
+    institucionSelect.addEventListener("change", actualizarDashboard);
+    anioSelect.addEventListener("change", actualizarDashboard);
+    diagnosticoSelect.addEventListener("change", actualizarGraficoSemanasDiagnostico);
+
+    const datosTipos = {{ datos.tipos | tojson }};
+    const datosMes = {{ datos.por_mes | tojson }};
+    const datosSemanas = {{ datos.por_semana | tojson }};    
+    const resumenInicial = {{ resumen | tojson }};
+    const resumenEventosInicial = {{ resumen_eventos | tojson }};
+    const tiposEventosInicial = {{ tipos_eventos | tojson }};
+    const resumenDiagnosticosInicial = {{ resumen_diagnosticos | tojson }};
+    const resumenJurisdiccion = {{ resumen_jurisdicciones | tojson }};
+    const diagnosticosInicial = {{ diagnosticos | tojson }};
+
+    
+    function actualizarCardTotales(totales) {
+
+        if (!totales) return;
+
+        document.getElementById("totalActivos").textContent = totales.activos ?? 0;
+        document.getElementById("totalPendiente").textContent = totales.pendiente_alta ?? 0;
+        document.getElementById("totalAlta").textContent = totales.alta ?? 0;
+        document.getElementById("totalBrotes").textContent = totales.total ?? 0;
+
+    }
+
+
+    // Paleta de colores para pie chart
+    const colores = [
+        'rgba(255, 99, 132, 0.6)',
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)',
+        'rgba(255, 159, 64, 0.6)',
+        'rgba(201, 203, 207, 0.6)',
+        'rgba(255, 205, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)'
+    ];
+
+    // Pie chart: tipos
+    if (datosTipos && datosTipos.length > 0) {
+        chartTipos = new Chart(document.getElementById('graficoTipos'), {
+            type: 'pie',
+            data: {
+                labels: datosTipos.map(d => d.tipo),
+                datasets: [{
+                    data: datosTipos.map(d => d.total),
+                    backgroundColor: colores,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio:true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    datalabels: {
+                        color: 'black',
+                        font: { 
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        formatter: function(value, context) {
+                            // Calcula el total para obtener porcentaje
+                            const total = context.chart.data.datasets[0].data
+                                .reduce((a, b) => a + b, 0);
+                            const porcentaje = ((value / total) * 100).toFixed(1);
+                            return `${value}\n(${porcentaje}%)`; // número + porcentaje
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels] // activa plugin datalabels
+        });
+    } else {
+        document.getElementById('graficoTipos').innerHTML = '<p class="text-muted text-center">No hay datos para mostrar</p>';
+    }
+
+
+    //Función para preparar meses para gráfico
+    function prepararDatosMeses(datosMes) {
+
+        const nombresMeses = [
+            "Ene","Feb","Mar","Abr","May","Jun",
+            "Jul","Ago","Sep","Oct","Nov","Dic"
+        ];
+
+        const valores = new Array(12).fill(0);
+
+        datosMes.forEach(d => {
+
+            const mesIndex = parseInt(d.mes.split("-")[1]) - 1;
+            valores[mesIndex] = d.total;
+
+        });
+
+        return { labels: nombresMeses, valores };
+    }
+
+    //const maxMes = Math.max(...datosMes.map(d => d.total));
+    // Bar chart: por mes
+    if (datosMes && datosMes.length > 0) {
+        const anio = anioSelect.value || new Date().getFullYear();
+        const { labels, valores } = prepararDatosMeses(datosMes);        
+        const maxMes = Math.max(...valores);
+
+        chartMeses = new Chart(document.getElementById('graficoMeses'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Brotes por Mes',
+                    data: valores,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio:true,
+                scales: {
+                    y: { 
+                        beginAtZero: true,                        
+                        max: maxMes + 3,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                layout: {
+                    padding: 10
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: 'black',
+                        font: {                    
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        formatter: function(value) {
+                            return value;
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+    } else {
+        document.getElementById('graficoMeses').innerHTML = '<p class="text-muted text-center">No hay datos para mostrar</p>';
+    }
+
+
+    function prepararDatosSemanas(semanas) {
+
+        const labels = Array.from({length: 52}, (_, i) => `Sem ${i + 1}`);
+        const valores = new Array(52).fill(0);
+
+        semanas.forEach(d => {
+            const index = d.semana - 1;
+            if (index >= 0 && index < 52) {
+                valores[index] = d.total;
+            }
+        });
+
+        return { labels, valores };
+    }
+
+    // Bar chart: por semana epidemiológica 
+    function inicializarGraficoSemanas(datosSemanas) {        
+
+        if (!datosSemanas) return;
+
+        const { labels, valores } = prepararDatosSemanas(datosSemanas);
+
+        chartSemanas = new Chart(document.getElementById('graficoSemanas'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Brotes por Semana Epidemiológica',
+                    data: valores,
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio:true,
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                layout: {
+                    padding: 10
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: 'black',
+                        font: {                    
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        formatter: function(value) {
+                            return value > 0 ? value : '';
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+
+    }
+
+    function actualizarGraficoTipos(tipos) {
+        if (!chartTipos) return;
+
+        chartTipos.data.labels = tipos.map(d => d.tipo);
+        chartTipos.data.datasets[0].data = tipos.map(d => d.total);
+        chartTipos.update();
+    }
+
+    function actualizarGraficoMeses(meses) {
+        if (!chartMeses) return;
+
+        const { labels, valores } = prepararDatosMeses(meses);
+
+         const maxMes = Math.max(...valores);
+
+        chartMeses.data.labels = labels;
+        chartMeses.data.datasets[0].data = valores;
+         // recalcular eje Y cada actualización
+        chartMeses.options.scales.y.max = maxMes + 4;
+
+        chartMeses.update();
+    }
+    
+    //Función para actualizar diagnósticos de acuerdo a la institución selececcionada
+    function actualizarSelectDiagnosticos(diagnosticos) {
+
+        const select = document.getElementById("selectDiagnostico");
+        if (!select) return;
+
+        const diagnosticoActual = select.value;
+
+        select.innerHTML = "";
+
+        const optionTodos = document.createElement("option");
+        optionTodos.value = "";
+        optionTodos.textContent = "Todos";
+        select.appendChild(optionTodos);
+
+        diagnosticos.forEach(d => {
+
+            const option = document.createElement("option");
+            option.value = d.iddiag;
+            option.textContent = d.nombre;
+
+            select.appendChild(option);
+
+        });
+
+        // restaurar selección si aún existe
+        if (diagnosticoActual && diagnosticos.some(d => d.iddiag == diagnosticoActual)) {
+            select.value = diagnosticoActual;
+        } else {
+            select.value = "";
+        }
+
+}
+
+    // Función para actualizar grafico de brotes por semana epidemiológica
+    function actualizarGraficoSemanas(semanas) {
+
+        if (!chartSemanas) return;
+
+        const { labels, valores } = prepararDatosSemanas(semanas);
+
+        chartSemanas.data.labels = labels;
+        chartSemanas.data.datasets[0].data = valores;
+        
+        const maxValor = Math.max(...valores);
+
+        chartSemanas.options.scales.y.max = maxValor + 2;
+        chartSemanas.update();
+    }
+
+    function actualizarGraficoSemanasDiagnostico() {
+
+        const institucion = institucionSelect.value || "";
+        const anio = anioSelect.value || "";
+        const diagnostico = diagnosticoSelect.value || "";
+
+        fetch(`/brotes/dashboard/semanas?institucion=${institucion}&anio=${anio}&diagnostico=${diagnostico}`)
+            .then(res => res.json())
+            .then(data => {
+
+                actualizarGraficoSemanas(data);
+
+            })
+            .catch(err => console.error(err));
+    }
+
+    // Función para calcular
+    function calcularTendencia(datos, ventana = 3) {
+
+        const tendencia = [];
+
+        for (let i = 0; i < datos.length; i++) {
+
+            let suma = 0;
+            let contador = 0;
+
+            for (let j = i; j > i - ventana && j >= 0; j--) {
+                suma += datos[j];
+                contador++;
+            }
+
+            tendencia.push((suma / contador).toFixed(2));
+        }
+
+        return tendencia;
+    }
+
+    // Agregar funcionalidad de DataTable si está disponible
+    function inicializarDataTable() {
+
+        if (window.jQuery && $.fn && $.fn.DataTable) {
+
+            if ($.fn.DataTable.isDataTable('#tabla_eventos')) {
+                $('#tabla_eventos').DataTable().destroy();
+            }
+
+            $('#tabla_eventos').DataTable({
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                },
+                pageLength: 10,
+                responsive: true
+            });
+
+        } else {
+            console.warn("DataTables aún no está disponible.");
+        }
+    }
+    
+    function actualizarTablaEstatus(resumen) {
+
+        const tbody = document.getElementById("tablaResumenEstatus");
+        tbody.innerHTML = "";
+
+        if (!resumen || resumen.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        No hay datos disponibles
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        
+        let totalActivos = 0;
+        let totalPendiente = 0;
+        let totalAlta = 0;
+        let totalGeneral = 0;
+
+        resumen.forEach(fila => {
+            totalActivos += Number(fila.activos) || 0;
+            totalPendiente += Number(fila.pendiente_alta) || 0;
+            totalAlta += Number(fila.alta) || 0;
+            totalGeneral += Number(fila.total) || 0;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${fila.institucion}</td>
+                    <td class="text-center">${fila.activos}</td>
+                    <td class="text-center">${fila.pendiente_alta}</td>
+                    <td class="text-center">${fila.alta}</td>
+                    <td class="fw-bold text-center">${fila.total}</td>
+                </tr>`;
+        });
+
+
+            // 🔥 Fila total general
+            tbody.innerHTML += `
+                <tr class="table-secondary fw-bold">
+                    <td>Total General</td>
+                    <td class="text-center">${totalActivos}</td>
+                    <td class="text-center">${totalPendiente}</td>
+                    <td class="text-center">${totalAlta}</td>
+                    <td class="text-center">${totalGeneral}</td>
+                </tr>`;        
+        
+    }
+
+    function actualizarTablaEventos(resumenEventos, tiposEventos) {
+
+        //Destruir si existe
+        if (window.jQuery && $.fn && $.fn.dataTable &&
+            $.fn.dataTable.isDataTable('#tabla_eventos')) {
+            $('#tabla_eventos').DataTable().clear().destroy();
+        }
+
+        const container = document.querySelector("#tabla_eventos").parentElement;
+
+        container.innerHTML = `
+            <table class="table table-bordered table-striped table-hover align-middle" id="tabla_eventos">
+                <thead id="theadEventos"></thead>
+                <tbody id="tbodyEventos"></tbody>
+            </table>
+        `;
+
+        const thead = document.getElementById("theadEventos");
+        const tbody = document.getElementById("tbodyEventos");
+
+        if (!resumenEventos || resumenEventos.length === 0) {
+
+            thead.innerHTML = `
+                <tr>
+                    <th>Institución</th>
+                    <th>Total</th>
+                </tr>`;
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="2" class="text-center text-muted">
+                        No hay datos disponibles
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        //Crear encabezado
+        let header = `<tr><th>Institución</th>`;
+
+        tiposEventos.forEach(tipo => {
+            header += `<th class="text-center">${tipo}</th>`;
+        });
+
+        header += `<th class="text-center">Total</th></tr>`;
+        thead.innerHTML = header;
+
+        // Inicializar acumuladores
+        let totalesPorTipo = {};
+        let totalGeneral = 0;
+
+        tiposEventos.forEach(tipo => {
+            totalesPorTipo[tipo] = 0;
+        });
+
+        // Crear filas y acumular
+        resumenEventos.forEach(fila => {
+
+            let row = `<tr><td>${fila.institucion}</td>`;
+
+            tiposEventos.forEach(tipo => {
+                const valor = Number(fila[tipo]) || 0;
+                totalesPorTipo[tipo] += valor;
+                row += `<td class="text-center">${valor}</td>`;
+            });
+
+            totalGeneral += Number(fila.total) || 0;
+
+            row += `<td class="text-center"><strong>${fila.total}</strong></td></tr>`;
+            tbody.innerHTML += row;
+        });
+
+        // Fila total general
+        let filaTotal = `<tr class="table-secondary fw-bold">
+                            <td>Total General</td>`;
+
+        tiposEventos.forEach(tipo => {
+            filaTotal += `<td class="text-center">${totalesPorTipo[tipo]}</td>`;
+        });
+
+        filaTotal += `<td class="text-center">${totalGeneral}</td></tr>`;
+
+        tbody.innerHTML += filaTotal;
+    
+    }
+
+    function actualizarTablaDiagnosticos(datos) {
+
+        datosDiagnosticosActual = datos;
+
+        const tbody = document.getElementById("tablaDiagnosticos");
+        tbody.innerHTML = "";
+
+        if (!datos || datos.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center text-muted">
+                        No hay datos disponibles
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let totalBrotes = 0;
+        let totalProb = 0;       
+        let totalActivo = 0;
+        let totalProbActivo = 0;
+        let totalAlta = 0;
+        let totalProbAlta = 0;
+        let totalPendientes = 0;
+        let totalProbPendientes = 0;
+
+        const filas = mostrarTodosDiagnosticos ? datos : datos.slice(0, limiteDiagnosticos);
+
+        filas.forEach(fila => {
+
+            totalBrotes += Number(fila.total_brotes) || 0;
+            totalProb += Number(fila.total_probables) || 0;
+
+            totalActivo += Number(fila.activos) || 0;
+            totalProbActivo += Number(fila.probables_activos) || 0;
+
+            totalAlta += Number(fila.alta) || 0;            
+            totalProbAlta += Number(fila.probables_altas) || 0;
+
+            totalPendientes += Number(fila.pendiente_alta) || 0;
+            totalProbPendientes += Number(fila.probables_pendiente_alta) || 0;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${fila.diagnostico}</td>
+                    <td class="text-center">${fila.total_brotes}</td>
+                    <td class="text-center">${fila.total_probables}</td>
+                    <td class="text-center">${fila.activos}</td>
+                    <td class="text-center">${fila.probables_activos}</td>
+                    <td class="text-center">${fila.alta}</td>
+                    <td class="text-center">${fila.probables_altas}</td>
+                    <td class="text-center">${fila.pendiente_alta}</td>
+                    <td class="text-center">${fila.probables_pendiente_alta}</td>
+                </tr>`;
+        });
+
+        tbody.innerHTML += `
+            <tr class="table-secondary fw-bold">
+                <td>Total General</td>
+                <td class="text-center">${totalBrotes}</td>
+                <td class="text-center">${totalProb}</td>           
+                <td class="text-center">${totalActivo}</td>
+                <td class="text-center">${totalProbActivo}</td>
+                <td class="text-center">${totalAlta}</td>
+                <td class="text-center">${totalProbAlta}</td>
+                <td class="text-center">${totalPendientes}</td>
+                <td class="text-center">${totalProbPendientes}</td>
+            </tr>`;
+
+        document.getElementById("toggleDiagnosticos").textContent =
+            mostrarTodosDiagnosticos ? "Mostrar menos" : "Ver todos";
+    }
+
+
+    document.getElementById("toggleDiagnosticos").addEventListener("click", () => {
+
+        mostrarTodosDiagnosticos = !mostrarTodosDiagnosticos;
+
+        actualizarTablaDiagnosticos(datosDiagnosticosActual);
+
+    });
+
+
+    function actualizarTablaJurisdiccion(resumenJurisdiccion) {
+        
+        datosJurisdiccionesActual = resumenJurisdiccion;
+
+        const tbody = document.getElementById("tablaJurisdicciones");
+        tbody.innerHTML = "";
+
+        if (!resumenJurisdiccion || resumenJurisdiccion.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        No hay datos disponibles
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let totalBrotes = 0;
+        let totalProb = 0;       
+        let totalActivo = 0;
+        let totalProbActivo = 0;
+        let totalAlta = 0;
+        let totalProbAlta = 0;
+        let totalPendeintes = 0;
+        let totalProbPendientes = 0;
+
+        const filas = mostrarTodasJurisdicciones
+            ? resumenJurisdiccion
+            : resumenJurisdiccion.slice(0, limiteJurisdicciones);
+
+        filas.forEach(fila => {
+
+            totalBrotes += Number(fila.total_brotes) || 0;
+            totalProb += Number(fila.total_probables) || 0;
+            
+            totalActivo += Number(fila.activos) || 0;
+            totalProbActivo += Number(fila.probables_activos) || 0;
+            
+            totalAlta += Number(fila.alta) || 0;            
+            totalProbAlta += Number(fila.probables_altas) || 0;
+            
+            totalPendeintes += Number(fila.pendiente_alta) || 0;
+            totalProbPendientes += Number(fila.probables_pendiente_alta) || 0;                    
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${fila.jurisdiccion}</td>
+                    <td class="text-center">${fila.total_brotes}</td>
+                    <td class="text-center">${fila.total_probables}</td>
+                    <td class="text-center">${fila.activos}</td>
+                    <td class="text-center">${fila.probables_activos}</td>
+                    <td class="text-center">${fila.alta}</td>
+                    <td class="text-center">${fila.probables_altas}</td>
+                    <td class="text-center">${fila.pendiente_alta}</td>
+                    <td class="text-center">${fila.probables_pendiente_alta}</td>
+                </tr>`;
+        });       
+
+        tbody.innerHTML += `
+            <tr class="table-secondary fw-bold">
+                <td>Total General</td>
+                <td class="text-center">${totalBrotes}</td>
+                <td class="text-center">${totalProb}</td>           
+                <td class="text-center">${totalActivo}</td>
+                <td class="text-center">${totalProbActivo}</td>
+                <td class="text-center">${totalAlta}</td>
+                <td class="text-center">${totalProbAlta}</td>
+                <td class="text-center">${totalPendeintes}</td>
+                <td class="text-center">${totalProbPendientes}</td>
+            </tr>`;
+        
+        document.getElementById("toggleJurisdicciones").textContent =
+            mostrarTodasJurisdicciones ? "Mostrar menos" : "Ver todos";
+    }
+
+
+    document.getElementById("toggleJurisdicciones").addEventListener("click", () => {
+
+        mostrarTodasJurisdicciones = !mostrarTodasJurisdicciones;
+
+        actualizarTablaJurisdiccion(datosJurisdiccionesActual);
+
+    });
+   
+    
+    if (datosSemanas) {
+        inicializarGraficoSemanas(datosSemanas);
+    }
+
+
+    //Recargar graficas si cambia institución o anio
+    institucionSelect.addEventListener(
+        "change",
+        actualizarGraficoSemanasDiagnostico
+    );
+
+    anioSelect.addEventListener(
+        "change",
+        actualizarGraficoSemanasDiagnostico
+    );
+
+
+    document.addEventListener("DOMContentLoaded", function() {
+        actualizarTablaEstatus(resumenInicial);
+        actualizarTablaEventos(resumenEventosInicial, tiposEventosInicial);
+        actualizarTablaDiagnosticos(resumenDiagnosticosInicial);
+        actualizarTablaJurisdiccion(resumenJurisdiccion);
+        actualizarGraficoSemanasDiagnostico();// Inicializa todos los diagnosticos                
+    });
+
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+
+{% block title %}GIS - Vigilancia Territorial{% endblock %}
+
+{% block head_extra %}
+<link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+    #map {
+        width: 100%;
+        height: 80vh;
+        border-radius: 8px;
+    }
+
+    .content-wrapper {
+    padding: 0 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="">
+    <div class="row g-0">
+        
+        <!-- 🔹 COLUMNA IZQUIERDA (FILTROS) -->
+        <div class="col-md-4 col-lg-3 order-md-1 order-2 p-3 bg-light" style="height:100vh; overflow-y:auto;">
+            
+            <button id="btnLimpiar" class="btn btn-secondary w-50 mb-3">
+                Limpiar filtros
+            </button>
+            <div class="mb-3">
+                <label><strong>Filtrar por institución:</strong></label>
+                <select id="filtroInstitucion" class="form-control">
+                    <option value="">Todas</option>
+                    <option value="SECRETARIA DE SALUD">SSA</option>
+                    <option value="SERVICIOS DE SALUD IMSS BIENESTAR">IMSS BIENESTAR OPD</option>
+                    <option value="INSTITUTO MEXICANO DEL SEGURO SOCIAL">IMSS RO</option>
+                    <option value="INSTITUTO MEXICANO DEL SEGURO SOCIAL REGIMEN BIENESTAR">IMSS COPLAMAR</option>
+                    <option value="INSTITUTO DE SEGURIDAD Y SERVICIOS SOCIALES DE LOS TRABAJADORES DEL ESTADO">ISSSTE</option>
+                    <option value="SISTEMA NACIONAL PARA EL DESARROLLO INTEGRAL DE LA FAMILIA">DIF</option>
+                    <option value="CRUZ ROJA MEXICANA">Cruz Roja</option>
+                    <option value="PETROLEOS MEXICANOS">PEMEX</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label><strong>Nivel de Atención:</strong></label>
+                <select id="filtroNivel" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="PRIMER NIVEL">Primer Nivel</option>
+                    <option value="SEGUNDO NIVEL">Segundo Nivel</option>
+                </select>
+            </div>            
+            
+            <div class="form-group mt-2">
+                <label><strong>Jurisdicción</strong></label>
+                <select id="filtroJurisdiccion" class="form-control">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+
+
+            <div class="mb-3">
+                <label><strong>Municipio:</strong></label>
+                <select id="filtroMunicipio" class="form-control" multiple size="10">                    
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+
+        </div>
+
+
+        <!-- 🔹 MAPA (OCUPA EL RESTO DEL ANCHO) -->
+        <div class="col-md-8 col-lg-9 order-md-2 order- p-0">
+            <div id="map" style="height:100vh; width:100%;"></div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="{{ url_for('gis.static', filename='gis/map.js') }}"></script>
+
+{% endblock %}

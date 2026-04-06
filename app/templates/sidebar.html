@@ -1,0 +1,76 @@
+<aside id="sidebar">
+    <div class="d-flex">
+        <button class="btn toggle-btn" type="button" aria-label="Toggle menu">
+            <i class="lni lni-dashboard-square-1"></i>
+        </button>
+        <div class="sidebar-logo">
+            <a href="#">DUEyD</a>
+        </div>
+    </div>
+    <ul class="sidebar-nav">
+        <li class="sidebar-item">
+            {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol == 'super_administrador') %}
+            <a href="{{ url_for('brotes_bp.formulario') }}" class="sidebar-link collapsed has-dropdown" data-bs-toggle="collapse" data-bs-target="#register"            
+                aria-expanded="false" aria-controls="register" aria-label="Registro de brotes">
+                <i class="lni lni-pen-to-square"></i>
+                <span>Registro</span>
+            {% endif %}    
+            </a>
+
+            <ul id="register" class="sidebar-dropdown list-unstyled collapse" data-bs-parent="#sidebar">
+                {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol == 'super_administrador') %}
+                <li class="sidebar-item">
+                    <a href="{{ url_for('brotes_bp.formulario') }}" class="sidebar-link">Nuevo</a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+
+        <li class="sidebar-item">
+            {% if current_user.is_authenticated and (current_user.rol == 'jefe_departamento' or current_user.rol == 'super_administrador') %}
+            <a href="{{ url_for('brotes_bp.lista_brotes') }}" class="sidebar-link" aria-label="Listado de brotes">
+                <i class="lni lni-layout-9"></i>
+                <span>Listado nominal</span>
+            </a>
+            {% endif %}
+        </li>
+
+        <li class="sidebar-item">
+            <a href="#" class="sidebar-link collapsed has-dropdown" data-bs-target="#auth" aria-expanded="false"
+                aria-controls="auth" aria-label="Reportes">
+                <i class="lni lni-bar-chart-4"></i>
+                <span>Reportes</span>
+            </a>
+        </li>
+
+        <!-- <li class="sidebar-item">
+            <a href="#" class="sidebar-link" aria-label="Notificaciones de brotes">
+                <i class="lni lni-bell-1"></i>
+                <span>Notificaciones</span>
+            </a>
+        </li> -->
+
+        <li class="sidebar-item">
+            <a href="#" class="sidebar-link collapsed has-dropdown" data-bs-toggle="collapse" data-bs-target="#diag"
+                aria-expanded="false" aria-controls="diag" aria-label="Configuraciones del sistema">
+                <i class="lni lni-gear-1"></i>
+                <span>Setting</span>
+            </a>
+            <ul id="diag" class="sidebar-dropdown list-unstyled collapse" data-bs-parent="#sidebar">
+                <li class="sidebar-item">
+                    <a href="#" class="sidebar-link">Catalogo
+                        diagnósticos</a>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <div class="sidebar-footer">
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('auth_bp.logout') }}" class="sidebar-link" aria-label="Cerrar sesión">
+            <i class="lni lni-exit"></i>
+            <span>Cerrar sesión</span>
+        </a>
+        {% endif %}
+    </div>
+</aside>
